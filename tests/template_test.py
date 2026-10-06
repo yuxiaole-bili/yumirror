@@ -41,8 +41,11 @@ def free_port():
     return p
 
 
+WAIT_SCALE = float(os.environ.get('YM_TEST_SCALE', '1') or 1)
+
+
 def wait_for(fn, timeout, interval=0.4):
-    end = time.time() + timeout
+    end = time.time() + timeout * WAIT_SCALE
     while time.time() < end:
         try:
             if fn():

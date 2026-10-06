@@ -13,6 +13,10 @@ jobs:
   test:
     name: ${{ matrix.os }} · py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
+    env:
+      # 慢机器上把测试内部的等待整体放大，避免卡在超时边界
+      YM_TEST_SCALE: '2'
+      PYTHONIOENCODING: utf-8
     strategy:
       fail-fast: false
       matrix:
@@ -31,14 +35,62 @@ jobs:
           pip install -r requirements.txt
 
       - name: 文档与代码是否同步
-        run: python scripts/gen_docs.py --check
-
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/gen_docs.py --check 2>&1 | tee docs.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            # 把关键几行顶到注解区，失败时不用翻日志就能看到原因
+            grep -m3 -E '\[FAIL\]|Traceback|Error:|错误|失败' docs.log | head -3 | while IFS= read -r line; do
+              echo "::error title=文档同步 失败::$line"
+            done
+            echo "----- 日志最后 40 行 -----"
+            tail -40 docs.log
+            exit $rc
+          fi
       - name: 功能冒烟（61 项）
-        run: python tests/smoke_test.py
-
+        shell: bash
+        run: |
+          set -o pipefail
+          python tests/smoke_test.py 2>&1 | tee smoke.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            # 把关键几行顶到注解区，失败时不用翻日志就能看到原因
+            grep -m3 -E '\[FAIL\]|Traceback|Error:|错误|失败' smoke.log | head -3 | while IFS= read -r line; do
+              echo "::error title=功能冒烟 失败::$line"
+            done
+            echo "----- 日志最后 40 行 -----"
+            tail -40 smoke.log
+            exit $rc
+          fi
       - name: 安全性攻防（37 项）
-        run: python tests/security_test.py
-
+        shell: bash
+        run: |
+          set -o pipefail
+          python tests/security_test.py 2>&1 | tee security.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            # 把关键几行顶到注解区，失败时不用翻日志就能看到原因
+            grep -m3 -E '\[FAIL\]|Traceback|Error:|错误|失败' security.log | head -3 | while IFS= read -r line; do
+              echo "::error title=安全测试 失败::$line"
+            done
+            echo "----- 日志最后 40 行 -----"
+            tail -40 security.log
+            exit $rc
+          fi
       - name: 模板验收（逐个真跑）
-        run: python tests/template_test.py
-        timeout-minutes: 25
+        shell: bash
+        run: |
+          set -o pipefail
+          python tests/template_test.py 2>&1 | tee template.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            # 把关键几行顶到注解区，失败时不用翻日志就能看到原因
+            grep -m3 -E '\[FAIL\]|Traceback|Error:|错误|失败' template.log | head -3 | while IFS= read -r line; do
+              echo "::error title=模板验收 失败::$line"
+            done
+            echo "----- 日志最后 40 行 -----"
+            tail -40 template.log
+            exit $rc
+          fi

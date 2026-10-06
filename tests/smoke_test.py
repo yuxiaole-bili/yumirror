@@ -63,8 +63,12 @@ def port_open(port):
         return False
 
 
+# 慢机器（比如 CI）上把内部等待整体放大：YM_TEST_SCALE=2
+WAIT_SCALE = float(os.environ.get('YM_TEST_SCALE', '1') or 1)
+
+
 def wait_for(fn, timeout, interval=0.3):
-    deadline = time.time() + timeout
+    deadline = time.time() + timeout * WAIT_SCALE
     while time.time() < deadline:
         try:
             if fn():
