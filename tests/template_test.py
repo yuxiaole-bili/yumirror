@@ -126,12 +126,12 @@ def main():
                    'flows_share_dir': os.path.join(tmp, 'shared_flows'),
                    'users_db_path': os.path.join(tmp, 'users.json'),
                    'logs_dir': os.path.join(tmp, 'srv_logs'),
-                   'heartbeat_interval': 3, 'stats_interval': 30}, f, indent=2)
+                   'heartbeat_interval': 15, 'stats_interval': 30}, f, indent=2)
     with open(os.path.join(app, 'client', 'config.json'), 'w', encoding='utf-8') as f:
         json.dump({'client_id': 'TPL-Client', 'group_id': 'tpl',
                    'server_host': '127.0.0.1', 'server_port': srv_port, 'server_web_port': srv_web,
                    'web_host': '127.0.0.1', 'web_port': cli_web,
-                   'heartbeat_interval': 3, 'sync_folders': [{'name': 'work', 'path': sync}],
+                   'heartbeat_interval': 15, 'sync_folders': [{'name': 'work', 'path': sync}],
                    'ignore_patterns': ['归档', 'vault'], 'auto_backup_on_start': True,
                    'backup_passphrase': 'tpl-pass', 'ssh_tunnel': {'enabled': False}}, f, indent=2)
 
@@ -151,8 +151,17 @@ def main():
         if not wait_for(lambda: call(base + '/api/status')[0] == 200, 40):
             print('客户端未启动'); return 1
         wait_for(lambda: (call(base + '/api/status')[1] or {}).get('watching') is True, 30)
+
+        def is_connected():
+            return bool((call(base + '/api/status')[1] or {}).get('connected'))
+
+        # 关键：显式等"真的连上服务端"（而不是 sleep 碰运气）。
+        # CI runner 慢，之前这里没等，导致上传类模板全报"未连接服务端"。
+        if not wait_for(is_connected, 60):
+            print('  ⚠ 客户端 60 秒内未连上服务端，上传类模板预计会失败')
         # 等首轮备份对账把文件推到服务端（verify_backup / list_versions 需要）
         time.sleep(8)
+        wait_for(is_connected, 30)
 
         full = os.path.join(sync, target)
         cases = []
@@ -171,6 +180,9 @@ def main():
                 skipped.append((key, title, why))
                 print('  [SKIP] %-22s %s   (%s)' % (title, key, why))
                 continue
+            # 执行前确保还连着（长时间跑测试时可能被踢，客户端会自动重连）
+            if not is_connected():
+                wait_for(is_connected, 45)
             flow = dict(tpl)
             # preflight_guard 里的 webhook 是占位地址，测试时指向本机面板，避免真的外呼
             if key == 'preflight_guard':
