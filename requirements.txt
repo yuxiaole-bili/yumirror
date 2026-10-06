@@ -1,0 +1,18 @@
+# yumirror v3 —— 服务端 + 客户端共用依赖
+# 安装：pip install -r requirements.txt
+
+Flask>=3.0.0
+flask-socketio>=5.3.0
+python-engineio>=4.8
+python-socketio>=5.11
+simple-websocket>=1.0
+watchdog>=3.0.0
+
+# 传输层 TLS（自签证书自动生成）与加密积木（encrypt_file / decrypt_file / make_key_file）都需要。
+# 不装的话：默认配置下服务端会拒绝启动（避免悄悄退化成明文传输）；
+# 确实需要明文调试时，在 config.json 里显式设 "tls": {"enabled": false}。
+cryptography>=41.0.0
+
+# 可选：仅在把 flask-socketio 切到 eventlet 异步模式时才需要。
+# 本项目客户端固定 async_mode='threading'，服务端用 Flask 自带服务器，默认不需要。
+# eventlet>=0.35.0

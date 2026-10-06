@@ -1,0 +1,48 @@
+# ---- 运行时数据（绝不入库）----
+server/config.json
+client/config.json
+server/users.json
+server/workshop.json
+server/backups/
+server/logs/
+server/shared_flows/
+client/data/
+client/flows/
+client/logs/
+sync_work/
+sync_shared/
+backups/
+logs/
+*.log
+
+# ---- 证书与私钥（服务端首次启动自动生成，绝不能入库）----
+certs/
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+*.spec
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 编辑器 / 系统 ----
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

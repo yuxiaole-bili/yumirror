@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>资源管理器 — yumirror</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--green:#34d399;--red:#f87171;--yellow:#fbbf24;--purple:#a78bfa;--r:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh}
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.header h1{font-size:17px}
+.nav{display:flex;gap:12px;font-size:12px}
+.nav a{color:var(--accent);text-decoration:none}
+.bar{display:flex;gap:8px;padding:12px 20px;align-items:center;flex-wrap:wrap}
+.bar select,.bar input{background:#0f1823;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px}
+.bar select:focus,.bar input:focus{border-color:var(--accent);outline:none}
+.bread{display:flex;gap:4px;align-items:center;font-size:12px;color:var(--muted);flex:1;min-width:200px;flex-wrap:wrap}
+.bread a{color:var(--accent);cursor:pointer;text-decoration:none}
+.bread .sep{color:var(--border)}
+.btn{padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);cursor:pointer;font-size:12px;transition:.12s;white-space:nowrap}
+.btn:hover{background:#2a3a56}
+.btn.primary{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:600}
+.btn.danger{color:var(--red);border-color:var(--red)}.btn.danger:hover{background:#2a1015}
+.btn.green{color:var(--green);border-color:var(--green)}.btn.green:hover{background:#0a2a1a}
+.wrap{margin:0 20px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:12px}
+th{color:var(--muted);font-weight:600;font-size:11px;background:#111827;position:sticky;top:0}
+tr.row{cursor:pointer}.row:hover{background:#1a2a40}
+td.name .ic{margin-right:8px}
+.dir{color:var(--yellow)}.file-txt{color:var(--accent)}.file-img{color:var(--green)}.file-bin{color:var(--muted)}
+.size,.mtime{color:var(--muted);font-size:11px}
+.actions{display:flex;gap:6px}
+.act{padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--accent);cursor:pointer;font-size:11px}
+.act:hover{background:#2a3a56}.act.del{color:var(--red)}.act.del:hover{background:#2a1015}
+.empty{padding:50px;text-align:center;color:var(--muted)}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--r);width:560px;max-width:94vw;max-height:80vh;overflow:auto;padding:18px}
+.modal h3{font-size:15px;margin-bottom:12px}
+.modal input,.modal textarea{width:100%;background:#0f1823;border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:10px}
+.modal textarea{min-height:140px;font-family:monospace}
+.modal .m-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.preview-body{white-space:pre-wrap;word-break:break-all;font-family:monospace;font-size:12px;line-height:1.6;background:#060a12;padding:12px;border-radius:6px;max-height:50vh;overflow:auto}
+.preview-img{max-width:100%;border-radius:6px}
+.footer{padding:10px 20px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);text-align:center;margin-top:16px}
+</style>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="alternate icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+</head>
+<body>
+
+<div class="header">
+<div><h1>🗂 资源管理器</h1></div>
+<div class="nav">
+<a href="/">← 主页</a>
+<a href="/flows">📦 方案</a>
+<a href="/editor">🧩 编辑器</a>
+<a href="/workshop">🏭 工坊</a>
+</div>
+</div>
+
+<div class="bar">
+<select id="folderSel" onchange="root(this.value)"></select>
+<button class="btn primary" onclick="mkdir()">📁 新建文件夹</button>
+<button class="btn" onclick="newFile()">📄 新建文件</button>
+<button class="btn" onclick="upload()">⬆ 上传</button>
+<button class="btn" onclick="load()">🔄 刷新</button>
+<div class="bread" id="bread"></div>
+</div>
+
+<div class="wrap" style="border:1px solid var(--border);border-radius:var(--r);overflow:auto">
+<table>
+<thead><tr><th>名称</th><th>大小</th><th>修改时间</th><th>操作</th></tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<div class="footer">yumirror · 资源管理器</div>
+
+<div class="modal-bg" id="modalBg">
+<div class="modal" id="modal"></div>
+</div>
+
+<input type="file" id="fileInput" style="display:none" multiple>
+
+<script>
+var folders = {{ cfg.get('sync_folders', []) | map(attribute='name') | list | tojson }};
+var folder = folders[0] || '';
+var path = '';
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+/* 内联事件参数必须用 jsq：esc 不处理单引号，文件名里带 ' 就能注入 JS */
+function jsq(s){return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtSize(n){
+ n=n||0;
+ if(n<1024)return n+' B'; if(n<1048576)return (n/1024).toFixed(1)+' KB';
+ if(n<1073741824)return (n/1048576).toFixed(1)+' MB'; return (n/1073741824).toFixed(2)+' GB';
+}
+function fmtTime(ts){ if(!ts)return '-'; var d=new Date(ts*1000); var p=function(x){return String(x).padStart(2,'0');}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+function icon(e){
+ if(e.is_dir)return '<span class="ic dir">📁</span>';
+ var ext=(e.name.split('.').pop()||'').toLowerCase();
+ if(['txt','md','json','py','html','css','js','log','cfg','ini','yaml','yml','xml','csv','sh','bat','ps1','toml','env','tex','c','cpp','h','rs','go','java','kt','swift'].indexOf(ext)>=0)return '<span class="ic file-txt">📄</span>';
+ if(['png','jpg','jpeg','gif','webp','svg','bmp','ico'].indexOf(ext)>=0)return '<span class="ic file-img">🖼</span>';
+ return '<span class="ic file-bin">📦</span>';
+}
+function initFolders(){
+ var sel=document.getElementById('folderSel');
+ sel.innerHTML=folders.map(function(f){return '<option value="'+esc(f)+'">'+esc(f)+'</option>';}).join('');
+}
+function breadHtml(){
+ var parts=path?path.split('/'):[];
+ var h='<a onclick="root(\''+jsq(folder)+'\')">'+esc(folder)+'</a>';
+ var acc='';
+ parts.forEach(function(p,i){
+  acc=acc?acc+'/'+p:p;
+  h+=' <span class="sep">/</span> <a onclick="nav(\''+jsq(acc)+'\')">'+esc(p)+'</a>';
+ });
+ if(!path)h+=' <span class="sep">/</span>';
+ return h;
+}
+function load(){
+ if(!folder)return;
+ var t=document.getElementById('tbody');
+ t.innerHTML='<tr><td colspan="4" class="empty">加载中...</td></tr>';
+ document.getElementById('bread').innerHTML=breadHtml();
+ fetch('/api/fs/list?folder='+encodeURIComponent(folder)+'&path='+encodeURIComponent(path)).then(function(r){return r.json();}).then(function(d){
+  if(d.status!=='ok'){t.innerHTML='<tr><td colspan="4" class="empty">'+esc(d.msg||'加载失败')+'</td></tr>';return;}
+  var es=d.entries||[];
+  if(!es.length){t.innerHTML='<tr><td colspan="4" class="empty">📭 空目录</td></tr>';return;}
+  t.innerHTML=es.map(function(e){
+   var acts='';
+   if(!e.is_dir)acts+='<button class="act" onclick="preview(\''+jsq(e.name)+'\')">👁</button><button class="act" onclick="dl(\''+jsq(e.name)+'\')">⬇</button>';
+   acts+='<button class="act" onclick="rn(\''+jsq(e.name)+'\','+e.is_dir+')">✏</button><button class="act del" onclick="del(\''+jsq(e.name)+'\','+e.is_dir+')">🗑</button>';
+   return '<tr class="row" onclick="enter(\''+jsq(e.name)+'\','+e.is_dir+')"><td class="name">'+icon(e)+esc(e.name)+'</td><td class="size">'+(e.is_dir?'—':fmtSize(e.size))+'</td><td class="mtime">'+fmtTime(e.mtime)+'</td><td onclick="event.stopPropagation()"><div class="actions">'+acts+'</div></td></tr>';
+  }).join('');
+ }).catch(function(){t.innerHTML='<tr><td colspan="4" class="empty">请求失败</td></tr>';});
+}
+function enter(name,isDir){ if(isDir)nav(path?path+'/'+name:name); }
+function nav(p){ path=p; load(); }
+function root(f){ if(!f)return; folder=f; path=''; load(); }
+function join(a,b){ return b?a+'/'+b:a; }
+function full(rp){ return {folder:folder,path:join(path,rp)}; }
+function showModal(html){ document.getElementById('modal').innerHTML=html; document.getElementById('modalBg').style.display='flex'; }
+function hideModal(){ document.getElementById('modalBg').style.display='none'; }
+function mkdir(){
+ showModal('<h3>📁 新建文件夹</h3><input id="mName" placeholder="文件夹名"><div class="m-actions"><button class="btn" onclick="hideModal()">取消</button><button class="btn primary" onclick="doMkdir()">创建</button></div>');
+ document.getElementById('mName').focus();
+}
+function doMkdir(){
+ var name=document.getElementById('mName').value.trim();
+ if(!name)return;
+ fetch('/api/fs/mkdir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder:folder,path:path,name:name})}).then(function(r){return r.json();}).then(function(d){
+  if(d.status==='ok'){hideModal();load();}else alert(d.msg||'创建失败');
+ });
+}
+function newFile(){
+ showModal('<h3>📄 新建文件</h3><input id="mName" placeholder="文件名"><textarea id="mContent" placeholder="文件内容"></textarea><div class="m-actions"><button class="btn" onclick="hideModal()">取消</button><button class="btn primary" onclick="doNewFile()">保存</button></div>');
+ document.getElementById('mName').focus();
+}
+function doNewFile(){
+ var name=document.getElementById('mName').value.trim();
+ if(!name)return;
+ fetch('/api/fs/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder:folder,path:join(path,name),content:document.getElementById('mContent').value})}).then(function(r){return r.json();}).then(function(d){
+  if(d.status==='ok'){hideModal();load();}else alert(d.msg||'保存失败');
+ });
+}
+function upload(){
+ var inp=document.getElementById('fileInput');
+ inp.onchange=function(){
+  var fd=new FormData();fd.append('folder',folder);fd.append('path',path);
+  for(var i=0;i<inp.files.length;i++)fd.append('file',inp.files[i]);
+  fetch('/api/fs/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+   if(d.status==='ok'){alert('✅ 已上传');load();}else alert(d.msg||'上传失败');
+  });
+  inp.value='';
+ };
+ inp.click();
+}
+function preview(name){
+ fetch('/api/file/read',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder:folder,relpath:join(path,name)})}).then(function(r){return r.json();}).then(function(d){
+  if(d.status!=='ok'){alert(d.msg||'无法预览');return;}
+  var body;
+  if(d.type==='image')body='<img class="preview-img" src="data:'+d.mime+';base64,'+d.content+'">';
+  else if(d.type==='text')body='<div class="preview-body">'+esc(d.content)+'</div>';
+  else body='<div class="preview-body">二进制文件 · '+fmtSize(d.size)+' · SHA256: '+esc(d.sha256||'')+'</div>';
+  showModal('<h3>👁 '+esc(name)+'</h3>'+body+'<div class="m-actions"><button class="btn" onclick="dl(\''+jsq(name)+'\')">⬇ 下载</button><button class="btn" onclick="hideModal()">关闭</button></div>');
+ });
+}
+function dl(name){ window.location.href='/api/fs/download?folder='+encodeURIComponent(folder)+'&path='+encodeURIComponent(join(path,name)); }
+function rn(name,isDir){
+ showModal('<h3>✏ 重命名</h3><input id="mName" value="'+esc(name)+'"><div class="m-actions"><button class="btn" onclick="hideModal()">取消</button><button class="btn primary" onclick="doRename(\''+jsq(name)+'\')">保存</button></div>');
+ document.getElementById('mName').select();
+}
+function doRename(oldName){
+ var nn=document.getElementById('mName').value.trim();
+ if(!nn||nn===oldName)return;
+ fetch('/api/fs/rename',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder:folder,path:join(path,oldName),new_name:nn})}).then(function(r){return r.json();}).then(function(d){
+  if(d.status==='ok'){hideModal();load();}else alert(d.msg||'重命名失败');
+ });
+}
+function del(name,isDir){
+ if(!confirm('删除 '+(isDir?'文件夹':'文件')+' '+name+' ?'))return;
+ fetch('/api/fs/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder:folder,path:join(path,name)})}).then(function(r){return r.json();}).then(function(d){
+  if(d.status==='ok')load();else alert(d.msg||'删除失败');
+ });
+}
+document.getElementById('modalBg').addEventListener('click',function(e){ if(e.target.id==='modalBg')hideModal(); });
+initFolders();
+load();
+</script>
+{{ i18n_js() }}
+</body>
+</html>

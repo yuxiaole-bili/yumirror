@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>积木编辑器 — yumirror</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--green:#34d399;--red:#f87171;--yellow:#fbbf24;--purple:#a78bfa;--orange:#fb923c;--r:12px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
+.header h1{font-size:18px;font-weight:700}
+.header a{color:var(--accent);text-decoration:none;font-size:13px}
+.header a:hover{text-decoration:underline}
+.btn{padding:7px 14px;border:1px solid var(--border);border-radius:7px;background:var(--card);color:var(--text);cursor:pointer;font-size:12px;transition:all .15s;white-space:nowrap;font-weight:500}
+.btn:hover{background:#2a3a56;border-color:var(--accent);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.btn.primary{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:700}.btn.primary:hover{filter:brightness(1.15)}
+.btn.danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn.green{background:#065f46;color:var(--green);border-color:#065f46}
+.btn.sm{padding:4px 9px;font-size:11px}
+.btn.gold{color:var(--yellow);border-color:var(--yellow)}
+.btn.trigger-btn{background:var(--yellow);color:#0f172a;border-color:var(--yellow);font-weight:700}
+.btn.trigger-btn:hover{filter:brightness(1.12)}
+.btn.mode-btn{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:700}
+.btn.mode-btn:hover{filter:brightness(1.15)}
+.toolbar .btn.sm{margin:0}
+select,input,textarea{background:#0f1823;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px;font-family:inherit;transition:border-color .15s,box-shadow .15s}
+select:focus,input:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 2px rgba(56,189,248,.15)}
+.toolbar{display:flex;gap:10px;padding:8px 20px;align-items:center;flex-shrink:0;background:#111827;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.toolbar .sep{width:1px;height:20px;background:var(--border);margin:0 6px}
+.toolbar .tip{font-size:11px;color:var(--muted);flex:1;text-align:right;min-width:120px}
+.toolbar input{width:150px}
+.main{display:flex;flex:1;overflow:hidden}
+.palette{width:220px;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--border);background:#0a0f1a;padding:8px;display:flex;flex-direction:column;gap:2px}
+.palette.drag-target{outline:3px dashed var(--red);outline-offset:-6px;background:rgba(248,113,113,.08)}
+#delHint{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#2a1015;color:var(--red);border:1px solid var(--red);padding:10px 18px;border-radius:10px;font-size:14px;font-weight:700;z-index:400;display:none;pointer-events:none;box-shadow:0 0 20px rgba(248,113,113,.5)}
+.palette h3{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:8px 0 3px;padding:0 4px}
+.pi{padding:6px 9px;margin:2px 0;border-radius:6px;cursor:grab;font-size:11px;display:flex;align-items:center;gap:5px;border:1px solid transparent;user-select:none;transition:all .12s;animation:pi-in .2s ease-out}
+@keyframes pi-in{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+.palette .pi:nth-child(2n){animation-delay:.03s}
+.palette .pi:nth-child(3n){animation-delay:.06s}
+.pi:hover{background:#1e293b;border-color:var(--accent);transform:translateX(3px)}
+.pi .pii{font-size:15px;flex-shrink:0;pointer-events:none}
+.pi .pil{flex:1;pointer-events:none;font-weight:500}
+.pal-hint{font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;padding:0 4px}
+
+.canvas-wrap{flex:1;overflow:auto;background:#0d1626}
+#flowCanvas{position:relative;min-width:5000px;min-height:5000px}
+
+.canvas-block{position:absolute;min-width:200px;max-width:320px;background:var(--card);border:2px solid var(--border);border-radius:10px;font-size:11px;z-index:5;user-select:none;cursor:default;will-change:transform;transition:box-shadow .15s,border-color .15s;animation:block-in .2s ease-out}
+@keyframes block-in{from{opacity:0}to{opacity:1}}
+.canvas-block.selected{box-shadow:0 0 0 3px var(--accent),0 6px 24px rgba(0,0,0,.4);z-index:6}
+.canvas-block.dragging{will-change:transform;opacity:.92;z-index:20}
+.canvas-block .b-header{padding:8px 10px;border-radius:8px 8px 0 0;font-weight:700;font-size:11px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)}
+.canvas-block .b-header .bname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.canvas-block .b-header .btools{display:none;gap:2px;flex-shrink:0}
+.canvas-block:hover .btools{display:flex}
+.canvas-block .btools span{font-size:11px;padding:1px 5px;border-radius:4px;cursor:pointer;color:var(--muted)}
+.canvas-block .btools span:hover{background:#00000044;color:var(--text)}
+.canvas-block .b-params{padding:5px 10px;font-size:10px;color:var(--muted);line-height:1.5}
+.canvas-block .b-params span{word-break:break-all}
+.canvas-block .b-footer{padding:4px 10px;font-size:8px;color:var(--muted);border-top:1px solid #ffffff08;font-family:monospace}
+
+.value-slots{display:flex;gap:8px;padding:6px 10px}
+.case-list{padding:4px 10px 8px;display:flex;flex-direction:column;gap:6px}
+.case-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#0f1823;border:1px solid var(--border);border-radius:8px;padding:4px 6px;animation:case-in .18s}
+@keyframes case-in{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.case-row .case-tag{font-size:8px;color:var(--yellow);font-weight:700;white-space:nowrap}
+.case-row .case-x{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0 2px}
+.case-row .case-x:hover{background:#2a1015;border-radius:3px}
+.case-op{background:#0f1823;border:1px solid var(--border);color:var(--yellow);padding:3px 4px;border-radius:5px;font-size:10px;min-width:46px;flex-shrink:1}
+.case-op:focus{border-color:var(--yellow);outline:none}
+.case-add{margin:2px auto 0;display:block;background:none;border:1px dashed var(--border);color:var(--muted);cursor:pointer;font-size:11px;padding:3px 12px;border-radius:6px}
+.case-add:hover{border-color:var(--yellow);color:var(--yellow)}
+.vslot{flex:1 1 70px;min-width:0;border:2px dashed #ffffff12;border-radius:8px;padding:4px 6px;min-height:34px;transition:all .18s;cursor:pointer}
+.vslot:hover{border-color:var(--accent);background:rgba(56,189,248,.05)}
+.vslot .vs-label{font-size:9px;color:var(--muted);margin-bottom:2px}
+.vslot.drag-over{border-color:var(--green)!important;background:rgba(52,211,153,.12)!important;transform:scale(1.03)}
+.vslot.empty{color:var(--muted);font-size:10px;text-align:center;line-height:1.6}
+.vs-input{width:100%;background:#0f1823;border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:5px;font-size:11px}
+.vs-input:focus{border-color:var(--accent);outline:none}
+.vs-value{display:flex;align-items:center;justify-content:space-between;gap:4px;background:var(--purple)22;border:1px solid var(--purple);border-radius:6px;padding:3px 6px;font-size:10px;color:#c4b5fd;animation:vs-in .2s}
+@keyframes vs-in{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+.vs-value b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vs-value button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px}
+
+.port-in{position:absolute;left:-9px;top:50%;transform:translateY(-50%);z-index:9}
+.port-out{position:absolute;right:-9px;top:50%;transform:translateY(-50%);z-index:9;display:flex;flex-direction:column;gap:3px;align-items:flex-end}
+.port{width:14px;height:14px;border-radius:50%;border:2px solid var(--muted);background:var(--bg);cursor:pointer;transition:transform .12s}
+.port:hover{transform:scale(1.4)}
+.port.in{border-color:var(--accent);background:var(--accent)11}
+.port.in:hover{background:var(--accent)}
+.port.out-ok{border-color:var(--green);background:var(--green)11}
+.port.out-ok:hover{background:var(--green)}
+.port.out-fail{border-color:var(--red);background:var(--red)11}
+.port.out-fail:hover{background:var(--red)}
+.port.out-blue{border-color:var(--accent);background:var(--accent)11}
+.port.out-blue:hover{background:var(--accent)}
+.port.out-yellow{border-color:var(--yellow);background:var(--yellow)11}
+.port.out-yellow:hover{background:var(--yellow)}
+.port.active-ring{box-shadow:0 0 0 4px #fbbf2466;animation:pulse .6s infinite alternate}
+@keyframes pulse{from{box-shadow:0 0 0 2px #fbbf2466}to{box-shadow:0 0 0 6px #fbbf2433}}
+.port-row{display:flex;align-items:center;gap:3px}
+.io-label{font-size:7px;color:var(--muted);font-weight:600}
+
+#connectionsSvg{position:absolute;top:0;left:0;pointer-events:none;z-index:2}
+#connectionsSvg path.conn-path{cursor:pointer;stroke-width:2.5;fill:none;pointer-events:stroke;animation:conn-in .18s ease-out}
+#connectionsSvg path.conn-path:hover{stroke-width:6;filter:brightness(1.4)}
+@keyframes conn-in{from{opacity:0}to{opacity:1}}
+
+.panel{width:320px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto;padding:12px;background:#0a0f1a}
+.panel h3{font-size:13px;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.panel .empty-detail{color:var(--muted);font-size:12px;text-align:center;padding:30px 0}
+.fg{margin-bottom:8px}.fg label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px;font-weight:500}
+.fg input,.fg select,.fg textarea{width:100%}.fg textarea{min-height:40px}
+.help-box{background:#0a1a2a;border:1px solid var(--accent);border-radius:6px;padding:8px 10px;margin:8px 0;font-size:11px;line-height:1.5;color:var(--text)}
+.help-box .help-title{color:var(--accent);font-weight:600;margin-bottom:4px;font-size:11px}
+
+.out{background:#060a12;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:11px;max-height:300px;overflow:auto;white-space:pre-wrap;color:var(--muted)}
+.toast{position:fixed;top:20px;right:20px;padding:10px 16px;border-radius:8px;font-size:13px;z-index:9999;animation:toast-in .35s cubic-bezier(.4,0,.2,1);max-width:380px;font-weight:500;pointer-events:none}
+.toast.ok{background:#065f46;color:var(--green);border:1px solid var(--green)}
+.toast.err{background:#7f1d1d;color:var(--red);border:1px solid var(--red)}
+@keyframes toast-in{from{opacity:0;transform:translateY(-16px) scale(.9)}to{opacity:1;transform:none}}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.conn-hint{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1e3a5f;color:var(--accent);padding:8px 16px;border-radius:8px;font-size:12px;z-index:100;pointer-events:none;display:none;border:1px solid var(--accent);text-align:center}
+.conn-hint.show{display:block}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;display:none;align-items:center;justify-content:center}
+.modal-bg.show{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;max-width:520px;width:92vw;animation:mb-in .2s}
+@keyframes mb-in{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:none}}
+.open-item{padding:7px 10px;margin:3px 0;border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;transition:all .12s}
+.open-item:hover{background:#2a3a56;border-color:var(--accent);transform:translateX(3px)}
+.trigger-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#0f1823;border:1px solid var(--border);border-radius:8px;padding:6px;margin:4px 0;animation:case-in .18s}
+.path-sel{display:flex;gap:5px;flex-wrap:wrap}
+.path-sel select{flex:1;min-width:90px;background:#0f1823;border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:5px;font-size:11px}
+.path-sel input{flex:2;min-width:90px;background:#0f1823;border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:5px;font-size:11px}
+.path-sel select:focus,.path-sel input:focus{border-color:var(--accent);outline:none}
+.tr-type{background:#0f1823;border:1px solid var(--border);color:var(--yellow);padding:4px 6px;border-radius:6px;font-size:11px}
+.tr-in{flex:1;min-width:70px;background:#0f1823;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:11px}
+.tr-in:focus{border-color:var(--yellow);outline:none}
+.tr-x{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 4px}
+.tr-x:hover{background:#2a1015;border-radius:4px}
+.mb-close{float:right;background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px}
+.mb-close:hover{color:var(--text)}
+.log-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#000a;z-index:200;display:flex;align-items:center;justify-content:center}
+.log-overlay .log-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:700px;max-height:80%;overflow-y:auto;color:var(--text);font-size:12px;line-height:1.6;position:relative}
+.log-box .close-btn{position:absolute;top:8px;right:12px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px}
+.log-entry{margin:4px 0;font-family:monospace;font-size:11px}
+</style>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="alternate icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+</head>
+<body>
+
+<div class="header">
+<div style="display:flex;align-items:center;gap:12px"><h1>🧩 积木编辑器</h1><a href="/">← 面板</a></div>
+<div style="display:flex;gap:8px">
+<button class="btn primary" onclick="saveFlow()">💾 保存</button>
+<button class="btn" onclick="loadFlowList()">📂 加载</button>
+<button class="btn green" onclick="executeFlow()">▶ 测试</button>
+<button class="btn danger" onclick="clearCanvas()">🗑 清空</button>
+<a class="btn mode-btn" href="/editor" title="切换到节点编辑模式">🔄 节点模式</a>
+</div>
+</div>
+
+<div class="toolbar">
+<input id="flowName" value="我的流程" placeholder="流程名称">
+<div class="sep"></div>
+<select id="tmplSel" onchange="loadTemplate(this.value)"><option value="">内置模板</option></select>
+<div class="sep"></div>
+<button class="btn sm" onclick="undo()" title="撤销 Ctrl+Z">↩ 撤销</button>
+<button class="btn sm" onclick="redo()" title="重做 Ctrl+Y">↪ 重做</button>
+<button class="btn sm" onclick="copySel()" title="复制 Ctrl+C">📋 复制</button>
+<button class="btn sm" onclick="pasteSel()" title="粘贴 Ctrl+V">📥 粘贴</button>
+<button class="btn sm" onclick="dupSel()" title="复制所选块 Ctrl+D">⧉ 复制块</button>
+<button class="btn sm" onclick="delSel()" title="删除所选块 Delete">🗑 删除</button>
+<div class="sep"></div>
+<button class="btn sm" onclick="zoomBy(-0.2)" title="缩小">−</button>
+<span id="zoomLabel" style="font-size:11px;color:var(--muted);min-width:38px;text-align:center">100%</span>
+<button class="btn sm" onclick="zoomBy(0.2)" title="放大">＋</button>
+<button class="btn sm" onclick="setZoom(1)" title="复位 100%">1:1</button>
+<button class="btn sm gold" onclick="autoLayout()" title="按连线顺序自动排列">🧹 排列</button>
+<div class="tip">值块可拖入 ⚖比较 的 L/R 槽 · 输出pin连到下一块输入pin定义顺序 · 拖块到左侧面板删除</div>
+</div>
+
+<div class="main">
+<div class="palette" id="palette"></div>
+<div class="canvas-wrap" id="canvasWrap">
+<div id="flowCanvas"><svg id="connectionsSvg"><defs>
+<marker id="ma-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#34d399"/></marker>
+<marker id="ma-red" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#f87171"/></marker>
+<marker id="ma-blue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#38bdf8"/></marker>
+<marker id="ma-yellow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0,0 10,3.5 0,7" fill="#fbbf24"/></marker>
+</defs></svg></div>
+<div class="conn-hint" id="connHint">🎯 点击目标块的输入端口完成连线<br><small style="color:var(--muted)">ESC 取消连线</small></div>
+</div>
+<div class="panel" id="detailPanel"><div class="empty-detail">👈 点击块查看详情</div></div>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal-box" id="modalBox"></div></div>
+<div id="delHint">🗑 释放删除</div>
+
+<script>
+/* ═════════ 块注册表（引擎 12 种块 + 值块标记） ═════════ */
+var CATS=['动作','逻辑','值'];
+var R={
+  log:{c:'动作',i:'📋',n:'记录日志',cl:'#34d399',p:[{n:'message',t:'text',l:'内容'}],o:['▶'],help:'输出一条日志。'},
+  sleep:{c:'动作',i:'⏱',n:'等待延时',cl:'#34d399',p:[{n:'seconds',t:'number',l:'秒'}],o:['▶'],help:'暂停指定秒数。'},
+  set_var:{c:'动作',i:'📌',n:'设置变量',cl:'#34d399',p:[{n:'var_name',t:'text',l:'变量名'},{n:'value',t:'text',l:'值'}],o:['▶'],help:'设置流程变量（供 {{变量}} 引用）。'},
+  scan_dir:{c:'动作',i:'📂',n:'扫描目录',cl:'#34d399',p:[{n:'folder',t:'text',l:'目录'},{n:'pattern',t:'text',l:'匹配'},{n:'recursive',t:'bool',l:'递归'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'扫描目录，文件列表存入 result_var。'},
+  write_file:{c:'动作',i:'💾',n:'写入文件',cl:'#34d399',p:[{n:'file_path',t:'text',l:'路径'},{n:'content',t:'text',l:'内容'},{n:'mode',t:'select',l:'模式',op:['overwrite','append']}],o:['▶'],help:'写入文本文件。'},
+  http_request:{c:'动作',i:'🌐',n:'HTTP 请求',cl:'#34d399',p:[{n:'url',t:'text',l:'URL'},{n:'method',t:'select',l:'方法',op:['GET','POST','PUT','DELETE']},{n:'headers',t:'text',l:'Headers'},{n:'body',t:'text',l:'Body'},{n:'result_var',t:'text',l:'结果变量'},{n:'timeout',t:'number',l:'超时(秒)'}],o:['ok','err'],help:'发送 HTTP 请求，响应存入 result_var。'},
+  run_command:{c:'动作',i:'⚙',n:'执行命令',cl:'#34d399',p:[{n:'command',t:'text',l:'命令'},{n:'result_var',t:'text',l:'结果变量'},{n:'timeout',t:'number',l:'超时(秒)'}],o:['ok','err'],help:'执行 shell 命令，输出存入 result_var。'},
+  compare:{c:'逻辑',i:'⚖',n:'比较判断',cl:'#fbbf24',p:[],o:['true','false'],slots:['left','right'],help:'多 case 判断：每个 case 一个 L op R 条件，各自输出 pin（含 else 兜底）。L/R 可填文本或拖入值块（自动用其 result_var）。'},
+  branch:{c:'逻辑',i:'🔀',n:'分支判断',cl:'#fbbf24',p:[{n:'var',t:'text',l:'判定变量',d:'_compare_result'},{n:'desc',t:'text',l:'说明'}],o:['▶'],help:'按变量真假执行不同子步骤（子步骤在源JSON中保留）。'},
+  get_file_hash:{c:'值',i:'🔑',n:'计算本地哈希',cl:'#a78bfa',p:[{n:'file_path',t:'text',l:'路径'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],val:true,help:'计算本地文件 SHA256，结果存入 result_var。可拖入 ⚖比较 的 L/R 槽作值。'},
+  get_server_hash:{c:'值',i:'☁',n:'获取服务端哈希',cl:'#a78bfa',p:[{n:'file_path',t:'text',l:'路径'},{n:'result_var',t:'text',l:'结果变量'},{n:'timeout',t:'number',l:'超时(秒)'}],o:['▶'],val:true,help:'获取服务端备份哈希，存入 result_var。'},
+  get_peer_hash:{c:'值',i:'👥',n:'获取同伴哈希',cl:'#a78bfa',p:[{n:'peer_id',t:'text',l:'同伴ID'},{n:'file_path',t:'text',l:'路径'},{n:'result_var',t:'text',l:'结果变量'},{n:'timeout',t:'number',l:'超时(秒)'}],o:['▶'],val:true,help:'获取同伴文件哈希，存入 result_var。'},
+  get_path_info:{c:'值',i:'📋',n:'获取路径信息',cl:'#a78bfa',p:[{n:'source',t:'select',l:'来源',op:['local','server','peer']},{n:'peer_id',t:'text',l:'同伴ID'},{n:'file_path',t:'text',l:'路径'},{n:'info_type',t:'select',l:'信息',op:['exists','size','mtime','hash','count','is_file','is_dir']},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],val:true,help:'获取路径信息，存入 result_var。可拖入 ⚖比较 的 L/R 槽作值。'},
+  delete_file:{c:'动作',i:'🗑',n:'删除文件',cl:'#34d399',p:[{n:'path',t:'text',l:'路径'}],o:['▶'],help:'删除本地文件/空目录（在同步目录内安全执行）。'},
+  mirror_from_peer:{c:'动作',i:'🪞',n:'从同伴镜像',cl:'#34d399',p:[{n:'peer_id',t:'text',l:'同伴ID'},{n:'folder',t:'text',l:'文件夹'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'请求指定同伴与我互相重发快照，实现该目录双向镜像（手动镜像）。'},
+  backup_to_server:{c:'动作',i:'☁',n:'备份到服务端',cl:'#34d399',p:[{n:'file_path',t:'text',l:'文件路径'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'校验文件是否已在服务端留备份（服务端随同步自动落盘）。'},
+  upload_to_server:{c:'动作',i:'⬆',n:'上传备份到服务端',cl:'#38bdf8',p:[{n:'file_path',t:'text',l:'文件路径'},{n:'remote_path',t:'text',l:'备份相对路径'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'真正把文件推送进服务端备份目录（区别于只查哈希的“备份到服务端”）。'},
+  verify_backup:{c:'动作',i:'🧾',n:'校验备份一致',cl:'#38bdf8',p:[{n:'file_path',t:'text',l:'文件路径'},{n:'remote_path',t:'text',l:'备份相对路径'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'本地 SHA256 与服务端备份比对，结果写入变量（true/false），可接分支判断。'},
+  copy_file:{c:'动作',i:'📄',n:'复制/归档文件',cl:'#34d399',p:[{n:'src',t:'text',l:'源文件'},{n:'dst_dir',t:'text',l:'目标目录'},{n:'overwrite',t:'bool',l:'覆盖同名'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'把文件复制到归档目录。'},
+  archive_zip:{c:'动作',i:'🗜',n:'打包为 ZIP',cl:'#34d399',p:[{n:'src',t:'text',l:'源文件/目录'},{n:'zip_path',t:'text',l:'zip 路径'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'把文件或目录打包进 zip（已存在则追加）。'},
+  manifest:{c:'动作',i:'📑',n:'生成备份清单',cl:'#34d399',p:[{n:'dir',t:'text',l:'目录'},{n:'pattern',t:'text',l:'匹配'},{n:'out_path',t:'text',l:'输出路径'},{n:'format',t:'select',op:['json','csv','md'],l:'格式'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'扫描目录生成清单（文件名/大小/时间/SHA256）。'},
+  cleanup_old:{c:'动作',i:'🧹',n:'清理过期文件',cl:'#f59e0b',p:[{n:'dir',t:'text',l:'目录'},{n:'pattern',t:'text',l:'匹配'},{n:'days',t:'num',l:'保留天数'},{n:'dry_run',t:'bool',l:'仅预演'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'删除 N 天前的文件；dry_run 默认 true，只列不删，确认后再关。'},
+  foreach:{c:'流程',i:'🔁',n:'遍历列表',cl:'#a78bfa',p:[{n:'list_var',t:'text',l:'列表变量'},{n:'item_var',t:'text',l:'元素变量'},{n:'index_var',t:'text',l:'序号变量'},{n:'max_items',t:'num',l:'最多项数'}],o:['▶'],help:'对列表变量（如“扫描目录”的结果）逐项执行子步骤。子步骤请在流程编辑器 /editor 的属性面板里用 JSON 填写；从模板加载的 foreach 已自带子步骤。'},
+  encrypt_file:{c:'加密',i:'🔐',n:'加密文件',cl:'#f472b6',p:[{n:'file_path',t:'text',l:'文件路径'},{n:'passphrase_secret',t:'text',l:'口令配置名'},{n:'key_file',t:'text',l:'密钥文件'},{n:'out_path',t:'text',l:'输出路径'},{n:'delete_source',t:'bool',l:'删除明文'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'AES-256-GCM 分块加密。口令从 client/config.json 的 backup_passphrase 读（不进流程文件/日志），或用密钥文件。'},
+  decrypt_file:{c:'加密',i:'🔓',n:'解密文件',cl:'#f472b6',p:[{n:'file_path',t:'text',l:'文件路径'},{n:'passphrase_secret',t:'text',l:'口令配置名'},{n:'key_file',t:'text',l:'密钥文件'},{n:'out_path',t:'text',l:'输出路径'},{n:'delete_source',t:'bool',l:'删除密文'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'解密 .enc 文件；密钥不对或文件被篡改会直接报错（GCM 认证标签）。'},
+  make_key_file:{c:'加密',i:'🗝',n:'生成密钥文件',cl:'#f472b6',p:[{n:'path',t:'text',l:'密钥文件路径'},{n:'overwrite',t:'bool',l:'覆盖已有'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'生成 32 字节随机密钥文件（十六进制文本，0600 权限）。丢了就解不开，请自行备份。'},
+  list_versions:{c:'版本',i:'🕘',n:'列出版本',cl:'#22d3ee',p:[{n:'file_path',t:'text',l:'服务端路径'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'列出该文件在服务端的历史版本与当前版本；结果变量是版本数组，_version_count 是数量。'},
+  snapshot_version:{c:'版本',i:'🔖',n:'打版本点',cl:'#22d3ee',p:[{n:'file_path',t:'text',l:'服务端路径'},{n:'reason',t:'text',l:'原因标记'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'把服务端当前备份归档成一个历史版本（内容没变也能留点），用于重要时间点存档。'},
+  restore_version:{c:'版本',i:'⏪',n:'服务端回滚',cl:'#22d3ee',p:[{n:'file_path',t:'text',l:'服务端路径'},{n:'version',t:'text',l:'版本(latest/latest-2/id)'},{n:'result_var',t:'text',l:'结果变量'}],o:['▶'],help:'把服务端备份回滚到指定版本。回滚前会把当前内容自动留档，所以可以再回滚撤销。'},
+  fetch_version:{c:'版本',i:'📥',n:'取回旧版本',cl:'#22d3ee',p:[{n:'file_path',t:'text',l:'服务端路径'},{n:'version',t:'text',l:'版本'},{n:'out_path',t:'text',l:'保存到'}],o:['▶'],help:'把服务端某个历史版本取回本地（默认写客户端 restored/ 目录），并校验 SHA256。'}
+};
+Object.keys(R).forEach(function(t){R[t].type=t;});
+
+/* ═════════ 状态 ═════════ */
+var blocks=[],selId=null,idCnt=0,connStart=null,domMap=new Map(),moveCleanup=null;
+var cvs=document.getElementById('flowCanvas'),wrap=document.getElementById('canvasWrap');
+var svgEl=document.getElementById('connectionsSvg'),connHint=document.getElementById('connHint');
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function genId(){return 'b'+(++idCnt);}
+function byId(id){return blocks.find(function(b){return b.id===id;});}
+function outPorts(t){return (R[t]&&R[t].o)||['▶'];}
+/* 按块返回输出端口：compare 多 case = 各 case + else */
+function outPortsOf(b){
+  if(b&&b.type==='compare'&&b.cases)return b.cases.map(function(c){return c.key;}).concat(['else']);
+  return (R[b.type]&&R[b.type].o)||['▶'];
+}
+
+/* ═════════ 撤销/重做/复制/粘贴/缩放/排列 ═════════ */
+var undoStack=[],redoStack=[],clip=null,zoom=1,foldersCache=[];
+var PATH_KEYS=['file_path','folder','path','target','script','file'];
+
+/* 文件夹路径选择器：`@folder:名称/子路径`，运行时由各客户端解析为本地绝对路径 */
+function parseFolderPath(v){
+  v=v||'';
+  if(v.indexOf('@folder:')===0){
+    var rest=v.slice(8);
+    var i=rest.indexOf('/');
+    var name=i>=0?rest.slice(0,i):rest;
+    return {folder:name,sub:i>=0?rest.slice(i+1):''};
+  }
+  return {folder:'',sub:v};
+}
+function pathInput(id,key,val){
+  var pv=parseFolderPath(val);
+  var opts='<option value="">(自定义/相对)</option>'+foldersCache.map(function(f){return '<option value="'+esc(f)+'"'+(pv.folder===f?' selected':'')+'>📁 '+esc(f)+'</option>';}).join('');
+  return '<div class="path-sel"><select id="pf_'+id+'_'+key+'" onchange="pathCompose(\''+id+'\',\''+key+'\')">'+opts+'</select><input id="ps_'+id+'_'+key+'" value="'+esc(pv.sub)+'" placeholder="子路径(相对该目录)" onchange="pathCompose(\''+id+'\',\''+key+'\')"><div style="font-size:8px;color:var(--muted)">选同步目录后，路径在各客户端自动解析为本地绝对路径；留空为自定义/变量</div></div>';
+}
+function pathCompose(id,key){
+  var f=document.getElementById('pf_'+id+'_'+key).value;
+  var s=document.getElementById('ps_'+id+'_'+key).value||'';
+  var v=f?('@folder:'+f+'/'+s):s;
+  updParam(id,key,v);
+}
+function snapAll(){return JSON.stringify({blocks:blocks,flowName:$('flowName').value,idCnt:idCnt});}
+function pushUndo(){undoStack.push(snapAll());if(undoStack.length>80)undoStack.shift();redoStack=[];}
+function applySnap(s){var d=JSON.parse(s);blocks=d.blocks;idCnt=d.idCnt||100;$('flowName').value=d.flowName||'我的流程';selId=null;render();}
+function undo(){if(!undoStack.length){toast('没有可撤销的操作','ok');return;}redoStack.push(snapAll());applySnap(undoStack.pop());toast('↩ 已撤销','ok');}
+function redo(){if(!redoStack.length){toast('没有可重做的操作','ok');return;}undoStack.push(snapAll());applySnap(redoStack.pop());toast('↪ 已重做','ok');}
+function cloneBlockDeep(src,dx,dy){
+  var copies=[];
+  function c(b){
+    var nb=JSON.parse(JSON.stringify(b));
+    nb.id=genId();nb.x+=dx;nb.y+=dy;nb.conn={};
+    if(nb.cases)nb.cases.forEach(function(cc){['left','right'].forEach(function(side){
+      var sv=cc[side];
+      if(sv&&sv.bid){var orig=byId(sv.bid);if(orig){var nv=c(orig);sv.bid=nv.id;}}
+    });});
+    blocks.push(nb);copies.push(nb);return nb;
+  }
+  c(src);return copies;
+}
+function copySel(){var b=selId?byId(selId):null;if(!b){toast('请先选中一个块','ok');return;}clip=JSON.stringify(b);toast('已复制: '+b.label,'ok');}
+function pasteSel(){if(!clip){toast('剪贴板为空','ok');return;}pushUndo();var cs=cloneBlockDeep(JSON.parse(clip),40,40);if(cs.length){selId=cs[0].id;}render();toast('已粘贴','ok');}
+function dupSel(){if(!selId){toast('请先选中一个块','ok');return;}pushUndo();var cs=cloneBlockDeep(byId(selId),40,40);if(cs.length)selId=cs[0].id;render();}
+function dupBlock(bid){var b=byId(bid);if(!b)return;pushUndo();cloneBlockDeep(b,40,40);render();}
+function delSel(){if(selId)delBlock(selId);else toast('请先选中一个块','ok');}
+function setZoom(z){zoom=Math.min(2,Math.max(0.4,z));$('zoomLabel').textContent=Math.round(zoom*100)+'%';cvs.style.transform='scale('+zoom+')';cvs.style.transformOrigin='0 0';}
+function zoomBy(d){setZoom(zoom+d);}
+function autoLayout(){
+  pushUndo();
+  /* 分层布局：按连线深度从左到右排布，层内上下排 */
+  var depth={};
+  var roots=blocks.filter(function(b){return !b.nested&&!hasIncoming(b);});
+  roots.sort(function(a,b){return (a.y-b.y)||(a.x-b.x);});
+  var q=roots.slice(),qi=0;
+  roots.forEach(function(b){depth[b.id]=0;});
+  while(qi<q.length){
+    var cur=q[qi++];var d=depth[cur.id]||0;
+    outPortsOf(cur).forEach(function(o){
+      var t=cur.conn[o];
+      if(t&&byId(t)&&depth[t]===undefined){depth[t]=d+1;q.push(byId(t));}
+    });
+  }
+  var maxD=-1;Object.keys(depth).forEach(function(k){if(depth[k]>maxD)maxD=depth[k];});
+  blocks.forEach(function(b){if(!b.nested&&depth[b.id]===undefined)depth[b.id]=maxD+1;});
+  var layers={};
+  blocks.forEach(function(b){if(b.nested)return;var d=depth[b.id];(layers[d]=layers[d]||[]).push(b);});
+  var colW=270,rowH=120,perCol=6,startX=80,startY=40;
+  Object.keys(layers).sort(function(a,b){return +a-+b;}).forEach(function(d){
+    var arr=layers[d];
+    arr.sort(function(a,b){return (a.y-b.y)||(a.x-b.x);});
+    var x=startX+(+d)*colW;
+    arr.forEach(function(b,idx){
+      var c=Math.floor(idx/perCol);
+      b.x=x+c*colW;
+      b.y=startY+(idx%perCol)*rowH;
+    });
+  });
+  render();toast('🧹 已按连线分层排列','ok');
+}
+
+/* ═════════ 面板 ═════════ */
+var CAT_ICON={动作:'🟢',逻辑:'🟡',值:'🟣'};
+function buildPalette(){
+  var h='';
+  CATS.forEach(function(ck){
+    h+='<h3>'+CAT_ICON[ck]+' '+ck+'</h3>';
+    Object.keys(R).filter(function(t){return R[t].c===ck;}).forEach(function(t){
+      var b=R[t];
+      h+='<div class="pi" draggable="true" ondragstart="dragPalette(event,\''+t+'\')" style="border-left:3px solid '+b.cl+'"><span class="pii">'+b.i+'</span><span class="pil">'+b.n+'</span></div>';
+    });
+  });
+  h+='<div class="pal-hint">点击/拖入画布 · 值块直接拖进 ⚖比较 的 L/R 槽 · 输出pin连到下一块输入pin定义顺序</div>';
+  $('palette').innerHTML=h;
+}
+
+/* ═════════ 画布拖放 ═════════ */
+wrap.addEventListener('dragover',function(e){e.preventDefault();});
+wrap.addEventListener('drop',function(e){
+  e.preventDefault();
+  var type=e.dataTransfer.getData('text/plain'), blockId=e.dataTransfer.getData('text/blockid');
+  var r=cvs.getBoundingClientRect(), x=(e.clientX-r.left+wrap.scrollLeft)/zoom, y=(e.clientY-r.top+wrap.scrollTop)/zoom;
+  if(blockId){var b=byId(blockId);if(b){b.x=x;b.y=y;render();}return;}
+  if(type)addBlock(type,x,y);
+});
+function dragPalette(e,t){e.dataTransfer.setData('text/plain',t);}
+
+function addBlock(type,x,y){
+  var def=R[type];if(!def)return;pushUndo();
+  var b={id:genId(),type,label:def.n,x:x||200,y:y||200,params:{},conn:{},cases:def.slots?[newCase(1)]:null};
+  (def.p||[]).forEach(function(p){b.params[p.n]=p.d!==undefined?p.d:(p.t==='bool'?false:'');});
+  blocks.push(b);selectBlock(b.id);render();
+}
+function newCase(n){return {key:'case'+n,left:{mode:'text',text:''},op:'==',right:{mode:'text',text:''}};}
+function slotHtml(b,c,side,label){
+  var sv=c[side];
+  var h='<div class="vslot '+(sv.mode==='block'?'':'empty')+'" data-bid="'+b.id+'" data-case="'+c.key+'" data-side="'+side+'" ondragover="vsOver(event)" ondragleave="vsLeave(event)" ondrop="vsDrop(event,\''+b.id+'\',\''+c.key+'\',\''+side+'\')"><div class="vs-label">'+label+'</div>';
+  if(sv.mode==='block'&&sv.bid){
+    h+='<div class="vs-value">'+(R[sv.type]?R[sv.type].i+' '+(R[sv.type].n||sv.type):esc(sv.type))+'<button onclick="vsClear(\''+b.id+'\',\''+c.key+'\',\''+side+'\',event)">✕</button></div>';
+  } else {
+    h+='<input class="vs-input" value="'+esc(sv.text||'')+'" placeholder="值或变量" onchange="vsText(\''+b.id+'\',\''+c.key+'\',\''+side+'\',this.value)">';
+  }
+  return h+'</div>';
+}
+function opSelHtml(b,c){
+  var opts=['==','!=','>','<','>=','<=','contains','not_contains','matches'].map(function(o){
+    return '<option value="'+o+'"'+(c.op===o?' selected':'')+'>'+o+'</option>';
+  }).join('');
+  return '<select class="case-op" onchange="setCaseOp(\''+b.id+'\',\''+c.key+'\',this.value)" title="运算符">'+opts+'</select>';
+}
+function addCase(bid,ev){if(ev)ev.stopPropagation();var b=byId(bid);if(!b)return;pushUndo();b.cases.push(newCase(b.cases.length+1));render();}
+function delCase(bid,key,ev){if(ev)ev.stopPropagation();var b=byId(bid);if(!b||b.cases.length<=1)return;pushUndo();b.cases=b.cases.filter(function(c){return c.key!==key;});Object.keys(b.conn||{}).forEach(function(k){if(k===key)b.conn[k]='';});render();}
+function setCaseOp(bid,key,v){var b=byId(bid);if(!b)return;pushUndo();b.cases.forEach(function(c){if(c.key===key)c.op=v;});}
+
+/* ═════════ 渲染块 ═════════ */
+function buildBlockDOM(b){
+  var def=R[b.type],el=document.createElement('div');
+  el.className='canvas-block';el.id='bc_'+b.id;
+  el.style.transform='translate('+b.x+'px,'+b.y+'px)';el.style.borderColor=def.cl;
+  var h='<div class="b-header" style="background:'+def.cl+'22;color:'+def.cl+'"><span style="background:'+def.cl+'33;padding:1px 6px;border-radius:4px">'+def.i+'</span><span class="bname">'+esc(b.label||def.n)+'</span><span class="btools"><span title="复制" onclick="dupBlock(\''+b.id+'\')">⧉</span><span title="删除" onclick="delBlock(\''+b.id+'\')">✕</span></span></div>';
+  var params=(def.p||[]).filter(function(p){return p.t!=='bool';});
+  if(params.length)h+='<div class="b-params">'+params.slice(0,3).map(function(p){return '<span style="margin-right:8px">'+(p.l||p.n)+': '+esc(b.params[p.n]||p.d||'—')+'</span>';}).join('')+'</div>';
+  if(b.cases){
+    h+='<div class="case-list">';
+    b.cases.forEach(function(c){
+      h+='<div class="case-row">'
+        +slotHtml(b,c,'left','L')
+        +opSelHtml(b,c)
+        +slotHtml(b,c,'right','R')
+        +'<span class="case-tag">'+esc(c.key)+'</span>'
+        +(b.cases.length>1?'<button class="case-x" onclick="delCase(\''+b.id+'\',\''+c.key+'\',event)">✕</button>':'')
+        +'</div>';
+    });
+    h+='<button class="case-add" onclick="addCase(\''+b.id+'\',event)">＋ case</button>';
+    h+='</div>';
+  }
+  h+='<div class="b-footer">'+def.type+(def.val?' · 值块':'')+'</div>';
+  h+='<div class="port-in"><div class="port in" data-bid="'+b.id+'" onclick="event.stopPropagation();onInputPortClick(\''+b.id+'\')" title="输入"></div></div>';
+  h+='<div class="port-out">';
+  outPortsOf(b).forEach(function(o){
+    var cls=o==='else'?'out-yellow':(o==='ok'?'out-ok':o==='err'?'out-fail':'out-blue');
+    var c=o==='else'?'#fbbf24':o==='ok'?'#34d399':o==='err'?'#f87171':'#38bdf8';
+    h+='<div class="port-row"><span class="io-label" style="color:'+c+'">'+o+'</span><div class="port '+cls+'" data-bid="'+b.id+'" data-port="'+o+'" onclick="event.stopPropagation();onOutputPortClick(\''+b.id+'\',\''+o+'\',this)" title="'+o+'"></div></div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+  el.addEventListener('mousedown',function(e){if(e.button!==0)return;if(e.target.closest('.port')||e.target.closest('.vslot')||e.target.closest('.vs-input')||e.target.closest('.btools'))return;selectBlock(b.id);startMove(b,el,e);});
+  el.addEventListener('click',function(e){if(e.target.closest('.port')||e.target.closest('.vslot')||e.target.closest('.btools'))return;selectBlock(b.id);});
+  return el;
+}
+function render(){
+  domMap.forEach(function(v){v.el.remove();});domMap.clear();
+  blocks.forEach(function(b){ if(b.nested) return; var el=buildBlockDOM(b);cvs.appendChild(el);measurePorts(b,el);domMap.set(b.id,{el:el}); });
+  blocks.forEach(function(b){if(b.id===selId){var d=domMap.get(b.id);if(d)d.el.classList.add('selected');}});
+  drawAllConnections();
+  if(selId)showDetail(selId);else $('detailPanel').innerHTML='<div class="empty-detail">👈 点击块查看详情</div>';
+}
+/* 渲染时测量一次端口相对积木的偏移并缓存（用 getBoundingClientRect 差值，忽略中间定位容器），拖动时纯算术定位 */
+function measurePorts(b,el){
+  b.portOfs={};
+  var br=el.getBoundingClientRect();
+  el.querySelectorAll('.port').forEach(function(p){
+    var key=p.dataset.port?('out:'+p.dataset.port):'in';
+    var r=p.getBoundingClientRect();
+    b.portOfs[key]={x:(r.left-br.left)/zoom,y:(r.top-br.top)/zoom,w:r.width/zoom,h:r.height/zoom};
+  });
+}
+
+/* ═════════ 移动（性能优化：rAF 合并 + 只重绘被拖动块的连线） ═════════ */
+/* 拖动：只移动 transform + 原地更新相关连线（无 layout、无重建 SVG） */
+var dragging=false,lastX=0,lastY=0,pathEls={};
+function startMove(block,el,e){
+  cancelMove();
+  var cr0=cvs.getBoundingClientRect();
+  var sx=(e.clientX-cr0.left+wrap.scrollLeft)/zoom-block.x, sy=(e.clientY-cr0.top+wrap.scrollTop)/zoom-block.y;
+  dragging=true;
+  el.classList.add('dragging');
+  lastX=e.clientX;lastY=e.clientY;
+  function onMove(ev){
+    ev.preventDefault();
+    lastX=ev.clientX;lastY=ev.clientY;
+    block.x=Math.max(0,(ev.clientX-cr0.left+wrap.scrollLeft)/zoom-sx);
+    block.y=Math.max(0,(ev.clientY-cr0.top+wrap.scrollTop)/zoom-sy);
+    el.style.transform='translate('+block.x+'px,'+block.y+'px)';
+    updateConnFor(block.id);
+    /* 拖删提示：悬停到左侧面板时高亮并显示提示 */
+    var pal=document.querySelector('.palette'),hint=document.getElementById('delHint');
+    var t=document.elementFromPoint(lastX,lastY);
+    var over=t&&t.closest?!!t.closest('.palette'):false;
+    if(pal)pal.classList.toggle('drag-target',over);
+    if(hint)hint.style.display=over?'block':'none';
+  }
+  function onUp(ev){
+    document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);
+    moveCleanup=null; dragging=false;
+    el.classList.remove('dragging');
+    var pal=document.querySelector('.palette'),hint=document.getElementById('delHint');
+    if(pal)pal.classList.remove('drag-target');
+    if(hint)hint.style.display='none';
+    /* 松手命中检测：值块拖进 L/R 槽 → 嵌入；拖到左侧面板 → 删除 */
+    var els=document.elementsFromPoint(lastX,lastY);
+    for(var i=0;i<els.length;i++){
+      if(els[i].closest&&els[i].closest('.vslot')){
+        var vs=els[i].closest('.vslot');
+        if(R[block.type]&&R[block.type].val){
+          blocks.forEach(function(x){Object.keys(x.conn||{}).forEach(function(k){if(x.conn[k]===block.id)x.conn[k]='';});});
+          blocks=blocks.filter(function(x){return x.id!==block.id;});
+          nestValue(vs.dataset.bid,vs.dataset.case,vs.dataset.side,block.type,block.params);
+        } else drawAllConnections();
+        return;
+      }
+    }
+    for(var j=0;j<els.length;j++){
+      if(els[j].closest&&els[j].closest('.palette')){ delBlock(block.id); return; }
+    }
+    drawAllConnections();
+  }
+  document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
+  moveCleanup=onUp;
+}
+function cancelMove(){if(moveCleanup){moveCleanup();moveCleanup=null;}}
+
+/* ═════════ 端口连线 ═════════ */
+function onOutputPortClick(bid,port,el){
+  if(connStart){
+    if(connStart.blockId===bid){cancelConnecting();toast('❌ 不能连接自身','err');return;}
+    var fb=byId(connStart.blockId);if(fb)fb.conn[connStart.portName]=bid;
+    cancelConnecting();render();return;
+  }
+  connStart={blockId:bid,portName:port,el:el};el.classList.add('active-ring');
+  var b=byId(bid);if(b){var d=domMap.get(bid);if(d)d.el.classList.add('selected');}
+  connHint.classList.add('show');toast('🎯 点击目标块输入端口完成连线','ok');
+}
+function onInputPortClick(bid){
+  if(!connStart)return;
+  if(connStart.blockId===bid){cancelConnecting();toast('❌ 不能连接自身','err');return;}
+  var fb=byId(connStart.blockId);if(fb)fb.conn[connStart.portName]=bid;
+  cancelConnecting();render();
+}
+function cancelConnecting(){
+  if(connStart){if(connStart.el)connStart.el.classList.remove('active-ring');connStart=null;}
+  connHint.classList.remove('show');
+}
+function connPathD(b,o){
+  var tid=b.conn[o];if(!tid)return null;
+  var tb=byId(tid);if(!tb||tb.nested)return null;
+  var po=b.portOfs&&b.portOfs['out:'+o],io=tb.portOfs&&tb.portOfs['in'];
+  if(!po||!io)return null;
+  var fx=b.x+po.x+po.w/2,fy=b.y+po.y+po.h/2;
+  var tx=tb.x+io.x+io.w/2,ty=tb.y+io.y+io.h/2;
+  var dx=Math.abs(tx-fx)*0.4;
+  return 'M'+fx+','+fy+' C'+(fx+dx)+','+fy+' '+(tx-dx)+','+ty+' '+tx+','+ty;
+}
+function drawAllConnections(){
+  Object.keys(pathEls).forEach(function(k){pathEls[k].remove();});
+  pathEls={};
+  var cw=Math.max(cvs.scrollWidth,5000),ch=Math.max(cvs.scrollHeight,5000);
+  svgEl.setAttribute('width',cw);svgEl.setAttribute('height',ch);
+  svgEl.style.width=cw+'px';svgEl.style.height=ch+'px';
+  blocks.forEach(function(b){ if(b.nested) return; outPortsOf(b).forEach(function(o){
+    var tid=b.conn[o]; if(!tid) return;
+    var d=connPathD(b,o); if(!d) return;
+    var c=o==='true'||o==='ok'?'#34d399':o==='false'||o==='err'?'#f87171':'#38bdf8';
+    var m=o==='true'||o==='ok'?'ma-green':o==='false'||o==='err'?'ma-red':'ma-blue';
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',d);path.setAttribute('stroke',c);path.setAttribute('stroke-width','2.5');path.setAttribute('fill','none');
+    path.setAttribute('stroke-dasharray',(o==='false'||o==='err')?'6,3':'none');
+    path.setAttribute('marker-end','url(#'+m+')');
+    path.setAttribute('data-src',b.id);path.setAttribute('data-dst',tid);path.setAttribute('data-port',o);
+    path.classList.add('conn-path');
+    path.addEventListener('click',function(ev){ev.stopPropagation();b.conn[o]='';render();});
+    svgEl.appendChild(path); pathEls[b.id+':'+o]=path;
+  });});
+}
+/* 拖动时原地更新与移动块相关的连线（无 layout、无重建） */
+function updateConnFor(bid){
+  Object.keys(pathEls).forEach(function(k){
+    var p=pathEls[k];
+    if(p.dataset.src===bid||p.dataset.dst===bid){
+      var d=connPathD(byId(p.dataset.src),p.dataset.port);
+      if(d)p.setAttribute('d',d);
+    }
+  });
+}
+
+/* ═════════ 值块进出 L/R 槽 ═════════ */
+function vsOver(e){e.preventDefault();e.stopPropagation();e.currentTarget.classList.add('drag-over');}
+function vsLeave(e){e.currentTarget.classList.remove('drag-over');}
+function vsDrop(e,bid,caseKey,side){
+  e.preventDefault();e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over');
+  var type=e.dataTransfer.getData('text/plain'),blockId=e.dataTransfer.getData('text/blockid');
+  var b=byId(bid);if(!b)return;
+  if(type){if(!R[type]||!R[type].val){toast('只有值块可放入','err');return;}nestValue(bid,caseKey,side,type);return;}
+  if(blockId){
+    var vb=byId(blockId);
+    if(!vb||!R[vb.type]||!R[vb.type].val){toast('只有值块可放入','err');return;}
+    blocks=blocks.filter(function(x){return x.id!==blockId;});
+    nestValue(bid,caseKey,side,vb.type,JSON.parse(JSON.stringify(vb.params)));
+  }
+}
+function caseSlot(b,caseKey,side){var c=null;if(b.cases)b.cases.forEach(function(x){if(x.key===caseKey)c=x;});return c?c[side]:null;}
+function nestValue(bid,caseKey,side,type,params){
+  var b=byId(bid);if(!b)return;pushUndo();
+  var vb={id:'vb'+(++idCnt),type:type,params:params||{},nested:true,conn:{},cases:null};
+  blocks.push(vb);
+  var c=null;b.cases.forEach(function(x){if(x.key===caseKey)c=x;});
+  if(c)c[side]={mode:'block',bid:vb.id,type:type};
+  render();
+}
+function vsClear(bid,caseKey,side,ev){ if(ev)ev.stopPropagation(); var b=byId(bid);if(!b)return;pushUndo(); var sv=caseSlot(b,caseKey,side); if(sv&&sv.bid)blocks=blocks.filter(function(x){return x.id!==sv.bid;}); if(sv)sv.mode='text';sv.text=''; render(); }
+function vsText(bid,caseKey,side,v){ var b=byId(bid);if(!b)return; var sv=caseSlot(b,caseKey,side); if(sv)sv.text=v; }
+
+/* ═════════ 详情面板 ═════════ */
+function showDetail(id){
+  var b=byId(id);if(!b)return;
+  var def=R[b.type];if(!def)return;
+  var h='<h3>'+def.i+' '+def.n+'</h3><div class="fg"><label>ID</label><input value="'+b.id+'" readonly style="opacity:.5"></div>';
+  (def.p||[]).forEach(function(p){
+    h+='<div class="fg"><label>'+(p.l||p.n)+'</label>';
+    if(p.t==='select')h+='<select onchange="updParam(\''+id+'\',\''+p.n+'\',this.value)">'+(p.op||[]).map(function(o){return '<option value="'+o+'"'+(String(b.params[p.n])===String(o)?' selected':'')+'>'+o+'</option>';}).join('')+'</select>';
+    else if(p.t==='bool')h+='<select onchange="updParam(\''+id+'\',\''+p.n+'\',this.value)"><option value="true"'+(b.params[p.n]?' selected':'')+'>true</option><option value="false"'+(b.params[p.n]?'':' selected')+'>false</option></select>';
+    else if(PATH_KEYS.indexOf(p.n)>=0)h+=pathInput(id,p.n,b.params[p.n]||p.d||'');
+    else h+='<input value="'+esc(b.params[p.n]||p.d||'')+'" onchange="updParam(\''+id+'\',\''+p.n+'\',this.value)">';
+    h+='</div>';
+  });
+  if(b.cases){
+    h+='<div class="help-box"><div class="help-title">📋 多 case</div>'+
+      b.cases.map(function(c){return '<div>'+esc(c.key)+': '+esc(slotVal(c,'left'))+' '+esc(c.op)+' '+esc(slotVal(c,'right'))+'</div>';}).join('')+
+      '<div style="color:var(--yellow)">else：兜底分支</div></div>';
+  }
+  if(def.help)h+='<div class="help-box"><div class="help-title">📖 说明</div>'+def.help.replace(/\n/g,'<br>')+'</div>';
+  h+='<div class="fg" style="margin-top:8px"><label>🔗 输出连线</label></div>';
+  outPortsOf(b).forEach(function(o){
+    var tid=b.conn[o]||'';
+    h+='<div style="display:flex;align-items:center;gap:4px;font-size:11px;margin:3px 0"><span style="min-width:30px">→ '+o+'</span><input value="'+esc(tid)+'" onchange="setConn(\''+id+'\',\''+o+'\',this.value)" style="font-size:10px" placeholder="目标块ID">'+(tid?'<button class="btn sm" onclick="setConn(\''+id+'\',\''+o+'\',\'\')">✂</button>':'')+'</div>';
+  });
+  h+='<button class="btn danger" onclick="delBlock(\''+id+'\')" style="margin-top:10px;width:100%">🗑 删除此块</button>';
+  $('detailPanel').innerHTML=h;
+}
+function updParam(id,key,val){var b=byId(id);if(!b)return;pushUndo();b.params[key]=val;render();}
+function setConn(id,o,v){var b=byId(id);if(!b)return;pushUndo();b.conn[o]=v;render();}
+function selectBlock(id){selId=id;domMap.forEach(function(v,bid){v.el.classList.toggle('selected',bid===id);});showDetail(id);}
+
+/* ═════════ 删除/清空 ═════════ */
+function delBlock(id){
+  var b=byId(id);if(!b)return;pushUndo();
+  blocks.forEach(function(x){Object.keys(x.conn||{}).forEach(function(k){if(x.conn[k]===id)x.conn[k]='';});});
+  if(b.cases){b.cases.forEach(function(c){['left','right'].forEach(function(side){if(c[side]&&c[side].bid)blocks=blocks.filter(function(x){return x.id!==c[side].bid;});});});}
+  blocks=blocks.filter(function(x){return x.id!==id;});
+  if(connStart&&connStart.blockId===id)cancelConnecting();
+  if(selId===id)selId=null;
+  render();
+}
+function clearCanvas(){if(confirm('确定清空？')){pushUndo();blocks=[];selId=null;cancelConnecting();cancelMove();render();}}
+
+/* ═════════ 编译 → 原格式 ═════════ */
+function hasIncoming(b){
+  return blocks.some(function(x){return outPortsOf(x).some(function(o){return x.conn[o]===b.id;});});
+}
+function compileOrder(){
+  var order=[],done={},vis={};
+  function emit(b){
+    if(!b||done[b.id]||vis[b.id])return;
+    vis[b.id]=true;
+    if(b.cases){b.cases.forEach(function(c){['left','right'].forEach(function(side){if(c[side]&&c[side].bid)emit(byId(c[side].bid));});});}
+    vis[b.id]=false;done[b.id]=true;order.push(b);
+    outPortsOf(b).forEach(function(o){var tid=b.conn[o];if(tid&&byId(tid))emit(byId(tid));});
+  }
+  var roots=blocks.filter(function(b){return !b.nested&&!hasIncoming(b);});
+  roots.sort(function(a,b){return (a.y-b.y)||(a.x-b.x);});
+  roots.forEach(function(b){emit(b);});
+  blocks.forEach(function(b){emit(b);});
+  return order;
+}
+function slotVal(c,side){
+  var sv=c[side];
+  if(!sv)return '';
+  if(sv.mode==='block'){var vb=byId(sv.bid);return vb&&vb.params.result_var?vb.params.result_var:'';}
+  return sv.text||'';
+}
+/* 一个块 → 若干步骤：compare 多 case 展开为多个 compare 步骤（各自 result_var） */
+function blockToSteps(b){
+  if(b.type==='compare'&&b.cases){
+    return b.cases.map(function(c,i){
+      return {id:b.id+'_c'+(i+1),type:'compare',label:(b.label||'比较判断')+' '+c.key,
+              config:{left:slotVal(c,'left'),op:c.op||'==',right:slotVal(c,'right'),result_var:'_case'+(i+1)}};
+    });
+  }
+  var cfg={};
+  Object.keys(b.params||{}).forEach(function(k){cfg[k]=b.params[k];});
+  if(b.type==='branch'){
+    cfg.true_steps=(b._branch&&b._branch.true_steps)||[];
+    cfg.false_steps=(b._branch&&b._branch.false_steps)||[];
+    delete cfg.desc;
+  }
+  return [{id:b.id,type:b.type,label:b.label||(R[b.type]&&R[b.type].n)||b.type,config:cfg}];
+}
+function ser(){
+  var steps=[];
+  compileOrder().forEach(function(b){steps=steps.concat(blockToSteps(b));});
+  return {name:$('flowName').value||'未命名',steps:steps};
+}
+
+/* ═════════ 保存/加载/测试 ═════════ */
+function api(m,u,b){return fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+function saveFlow(){api('POST','/api/flow/save',ser()).then(function(d){if(d.status==='ok')toast('✅ 已保存','ok');else toast('❌ '+(d.msg||''),'err');}).catch(function(){toast('❌ 网络错误','err');});}
+function executeFlow(){api('POST','/api/flow/execute',ser()).then(function(d){
+  if(d.status==='ok'){toast('✅ 完成 ('+d.steps+'步)','ok');if(d.logs&&d.logs.length)showLogOverlay(d.logs);}
+  else toast('❌ '+(d.error||'未知错误'),'err');
+}).catch(function(){toast('❌ 网络错误','err');});}
+function showModal(html){var m=$('modalBox');m.innerHTML='<button class="mb-close" onclick="closeModal()">✕</button>'+html;$('modalBg').classList.add('show');}
+function closeModal(){$('modalBg').classList.remove('show');}
+
+function loadFlowList(){
+  Promise.all([api('GET','/api/flow/list'),api('GET','/api/workshop/list')]).then(function(res){
+    var loc=res[0].flows||[],ws=(res[1].items||[]).filter(function(i){return i.flow;});
+    var h='<h3 style="margin:2px 0 10px">📂 打开流程</h3>';
+    h+='<div style="font-size:11px;color:var(--muted);margin-bottom:4px">📁 本地已保存</div>';
+    if(!loc.length)h+='<div style="font-size:10px;color:var(--muted);margin-bottom:6px">（无）</div>';
+    loc.forEach(function(f){h+='<div class="open-item" onclick="loadLocal(\''+esc(f.name)+'\')">📄 '+esc(f.name)+' <span style="color:var(--muted);margin-left:auto">'+f.steps+' 步</span></div>';});
+    h+='<div style="font-size:11px;color:var(--muted);margin:10px 0 4px">🏭 流程工坊</div>';
+    if(!ws.length)h+='<div style="font-size:10px;color:var(--muted)">（工坊暂无方案）</div>';
+    ws.forEach(function(i){h+='<div class="open-item" onclick="loadWorkshop(\''+i.id+'\')">🏭 '+esc(i.name)+' <span style="color:var(--muted);margin-left:auto">'+esc(i.author||'匿名')+'</span></div>';});
+    showModal(h);
+  }).catch(function(){toast('❌ 获取列表失败','err');});
+}
+function loadLocal(n){api('GET','/api/flow/load/'+encodeURIComponent(n)).then(function(d){if(d.flow){deser(d.flow);closeModal();toast('✅ 已加载: '+n,'ok');}else toast('❌ 未找到','err');});}
+function loadWorkshop(id){api('GET','/api/workshop/download/'+id).then(function(d){if(d.status==='ok'&&d.flow){deser(d.flow);closeModal();toast('✅ 已加载工坊流程','ok');}else toast('❌ 加载失败','err');});}
+function deser(flow){
+  pushUndo();blocks=[];idCnt=0;selId=null;cancelConnecting();cancelMove();domMap.forEach(function(v){v.el.remove();});domMap.clear();
+  /* 线性化：steps 或 全部 queues + tail（多队列流程不再丢失） */
+  var steps=flow.steps||[];
+  if(flow.queues||flow.lanes){
+    steps=[];
+    (flow.queues||flow.lanes||[]).forEach(function(q){steps=steps.concat(q.steps||[]);});
+    steps=steps.concat(flow.tail||[]);
+  }
+  steps.forEach(function(s,i){
+    var def=R[s.type];
+    var b={id:s.id||('b'+(++idCnt)),type:s.type,label:s.label||(def&&def.n)||s.type,x:60,y:60+i*86,params:{},conn:{},cases:def&&def.slots?[newCase(1)]:null};
+    var cfg=s.config||s.params||{};
+    (def?def.p:[]).forEach(function(p){if(!(p.n in cfg))b.params[p.n]=p.d!==undefined?p.d:(p.t==='bool'?false:'');});
+    if(s.type==='branch'){
+      b.params.var=cfg.var!=null?cfg.var:(b.params.var!=null?b.params.var:'_compare_result');
+      b.params.desc=cfg.desc||'';
+      b._branch={true_steps:cfg.true_steps||[],false_steps:cfg.false_steps||[]};
+    } else if(b.cases){
+      var c=b.cases[0];
+      c.left={mode:'text',text:String(cfg.left!=null?cfg.left:'')};
+      c.right={mode:'text',text:String(cfg.right!=null?cfg.right:'')};
+      if(cfg.op!=null)c.op=cfg.op;
+      Object.keys(cfg).forEach(function(k){if(k!=='left'&&k!=='right'&&k!=='op'&&k!=='result_var')b.params[k]=cfg[k];});
+    } else {
+      Object.keys(cfg).forEach(function(k){b.params[k]=cfg[k];});
+    }
+    blocks.push(b);
+    var n=parseInt(String(s.id||'').replace(/\D/g,''));if(n>idCnt)idCnt=n;
+  });
+  /* 自动连线：按步骤顺序把上一个块的首个输出pin连到下一个块 */
+  var chain=blocks.filter(function(b){return !b.nested;});
+  for(var ci=0;ci<chain.length-1;ci++){
+    var out=outPortsOf(chain[ci])[0];
+    if(out)chain[ci].conn[out]=chain[ci+1].id;
+  }
+  if(flow.name)$('flowName').value=flow.name;
+  render();
+}
+function loadTemplate(v){
+  if(!v)return;
+  if(v.indexOf('W:')===0){
+    api('GET','/api/workshop/download/'+v.slice(2)).then(function(d){ if(d.status==='ok'&&d.flow){deser(d.flow);toast('✅ 已加载模板','ok');} else toast('❌ 模板不存在','err'); });
+    return;
+  }
+  api('GET','/api/flow/template/'+v).then(function(d){ if(d.flow){deser(d.flow);toast('✅ 已加载模板','ok');} else toast('❌ 模板不存在','err'); });
+}
+function showLogOverlay(logs){
+  var old=document.querySelector('.log-overlay');if(old)old.remove();
+  var overlay=document.createElement('div');overlay.className='log-overlay';
+  var box=document.createElement('div');box.className='log-box';
+  box.innerHTML='<button class="close-btn" onclick="this.closest(\'.log-overlay\').remove()">✕</button><h4>📋 执行日志</h4><div style="margin-top:8px">'+logs.map(function(l){return '<div class="log-entry">'+esc(l)+'</div>';}).join('')+'</div>';
+  overlay.appendChild(box);document.body.appendChild(overlay);
+  overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
+}
+function toast(msg,type){var el=document.createElement('div');el.className='toast '+(type||'ok');el.textContent=msg;document.body.appendChild(el);setTimeout(function(){el.remove();},2500);}
+function isInputFocused(){var t=document.activeElement;return t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA');}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){if($('modalBg').classList.contains('show'))closeModal();cancelConnecting();cancelMove();return;}
+  if(isInputFocused())return;
+  if(e.ctrlKey||e.metaKey){
+    var k=e.key.toLowerCase();
+    if(k==='z'){e.preventDefault();e.shiftKey?redo():undo();}
+    else if(k==='y'){e.preventDefault();redo();}
+    else if(k==='c'){e.preventDefault();copySel();}
+    else if(k==='v'){e.preventDefault();pasteSel();}
+    else if(k==='d'){e.preventDefault();dupSel();}
+    else if(k==='='||k==='+'){e.preventDefault();zoomBy(0.1);}
+    else if(k==='-'){e.preventDefault();zoomBy(-0.1);}
+    return;
+  }
+  if((e.key==='Delete'||e.key==='Backspace')&&selId){e.preventDefault();delBlock(selId);}
+});
+
+function loadTemplateOptions(){
+  // 内置模板（引擎 FLOW_TEMPLATES）：此前只列工坊模板，内置模板根本选不到
+  api('GET','/api/flow/templates').then(function(d){
+    var tpls=d.templates||[],cats=d.categories||[],html='<option value="">选择模板（'+(d.total||tpls.length)+' 个）</option>';
+    cats.forEach(function(c){
+      var items=tpls.filter(function(t){return t.category===c;});
+      if(!items.length)return;
+      html+='<optgroup label="'+esc(c)+'">'+items.map(function(t){
+        return '<option value="'+esc(t.key)+'" title="'+esc(t.description)+'">'+esc(t.name)+' · '+t.steps+'步</option>';
+      }).join('')+'</optgroup>';
+    });
+    $('tmplSel').innerHTML=html;
+  }).catch(function(){});
+  api('GET','/api/workshop/list').then(function(d){
+    var official=(d.items||[]).filter(function(i){return i.author==='Official'&&i.flow;});
+    if(!official.length)return;
+    var g=document.createElement('optgroup');g.label='☁ 服务端工坊';
+    official.forEach(function(i){var op=document.createElement('option');op.value='W:'+i.id;op.textContent=i.name;g.appendChild(op);});
+    $('tmplSel').appendChild(g);
+  }).catch(function(){});
+}
+
+/* ═════════ 初始化 ═════════ */
+api('GET','/api/folders').then(function(d){foldersCache=(d||[]).map(function(f){return f.name;});}).catch(function(){});
+loadTemplateOptions();buildPalette();
+$('modalBg').addEventListener('click',function(e){if(e.target.id==='modalBg')closeModal();});
+var qs=new URLSearchParams(location.search),toLoad=qs.get('load');
+if(toLoad){api('GET','/api/flow/load/'+encodeURIComponent(toLoad)).then(function(d){if(d.flow)deser(d.flow);else render();});}
+else render();
+</script>
+{{ i18n_js() }}
+</body>
+</html>

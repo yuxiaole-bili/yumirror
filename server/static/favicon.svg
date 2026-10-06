@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="yumirror">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a111e"/><stop offset="1" stop-color="#122037"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)" stroke="#38bdf8" stroke-width="7"/>
+  <!-- 镜轴 -->
+  <line x1="128" y1="52" x2="128" y2="204" stroke="#22d3ee" stroke-width="7"
+        stroke-linecap="round" stroke-dasharray="15 12"/>
+  <!-- 镜像副本（左，虚卡） -->
+  <rect x="40" y="80" width="72" height="104" rx="14" fill="#162e30" stroke="#34d399"
+        stroke-width="6" opacity="0.85"/>
+  <rect x="54" y="100" width="44" height="7" rx="3.5" fill="#34d399" opacity="0.75"/>
+  <rect x="54" y="118" width="34" height="7" rx="3.5" fill="#34d399" opacity="0.55"/>
+  <rect x="54" y="136" width="40" height="7" rx="3.5" fill="#34d399" opacity="0.45"/>
+  <!-- 原件（右，实卡） -->
+  <rect x="144" y="72" width="76" height="112" rx="15" fill="#1e293b" stroke="#38bdf8" stroke-width="7"/>
+  <rect x="160" y="94" width="44" height="8" rx="4" fill="#94a3b8"/>
+  <rect x="160" y="114" width="34" height="8" rx="4" fill="#94a3b8" opacity="0.8"/>
+  <rect x="160" y="134" width="40" height="8" rx="4" fill="#94a3b8" opacity="0.65"/>
+</svg>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>🖥 yumirror 服务端面板</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--green:#34d399;--red:#f87171;--yellow:#fbbf24;--purple:#a78bfa;--r:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.header h1{font-size:20px;font-weight:700}
+.header .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:20px 24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;text-align:center}
+.stat-card .stat-num{font-size:32px;font-weight:700;line-height:1.1}
+.stat-card .stat-label{font-size:11px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 24px 24px}
+@media(max-width:900px){.main-grid{grid-template-columns:1fr}}
+.section{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.section-header{padding:12px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px}
+.section-body{padding:0}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #ffffff08}
+th{color:var(--muted);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.5px;background:#0a0f1a}
+td{color:var(--text)}
+.badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.badge.green{background:#065f46;color:var(--green)}
+.badge.yellow{background:#4a3a00;color:var(--yellow)}
+.badge.purple{background:#2a1040;color:var(--purple)}
+.badge.blue{background:#0a2a4a;color:var(--accent)}
+.code-font{font-family:monospace;letter-spacing:1px;font-size:12px}
+.empty-row td{padding:20px;text-align:center;color:var(--muted);font-size:12px}
+.progress-bar{height:6px;background:#0f1823;border-radius:3px;overflow:hidden;margin-top:6px}
+.progress-fill{height:100%;border-radius:3px;background:var(--accent);transition:width .3s}
+.footer{padding:12px 24px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);text-align:center}
+.refresh-indicator{font-size:10px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="header">
+<div>
+<h1><span class="status-dot"></span>yumirror 服务端</h1>
+<span style="font-size:12px;color:var(--muted)" id="serverName">—</span>
+</div>
+<div style="display:flex;align-items:center;gap:16px;font-size:12px">
+<span id="uptime">运行时间: —</span>
+<span class="refresh-indicator" id="refreshHint">⏱ 每 3s 刷新</span>
+</div>
+</div>
+
+<div class="stats-row">
+<div class="stat-card"><div class="stat-num" style="color:var(--accent)" id="statClients">0</div><div class="stat-label">在线客户端</div></div>
+<div class="stat-card"><div class="stat-num" style="color:var(--green)" id="statGroups">0</div><div class="stat-label">活跃分组</div></div>
+<div class="stat-card"><div class="stat-num" style="color:var(--yellow)" id="statFlows">0</div><div class="stat-label">已分享流程</div></div>
+<div class="stat-card"><div class="stat-num" style="color:var(--purple)" id="statBackups">0 MB</div><div class="stat-label">备份数据量</div></div>
+</div>
+
+<div class="main-grid">
+
+<div class="section">
+<div class="section-header">💻 在线客户端</div>
+<div class="section-body">
+<table><thead><tr><th>客户端</th><th>分组</th><th>在线</th></tr></thead>
+<tbody id="tblClients"><tr class="empty-row"><td colspan="3">暂无客户端连接</td></tr></tbody></table>
+</div>
+</div>
+
+<div class="section">
+<div class="section-header">👥 同步分组</div>
+<div class="section-body">
+<table><thead><tr><th>分组ID</th><th>成员数</th><th>成员列表</th></tr></thead>
+<tbody id="tblGroups"><tr class="empty-row"><td colspan="3">暂无活跃分组</td></tr></tbody></table>
+</div>
+</div>
+
+<div class="section">
+<div class="section-header">📤 已分享流程</div>
+<div class="section-body">
+<table><thead><tr><th>方案码</th><th>流程名称</th><th>步骤数</th></tr></thead>
+<tbody id="tblFlows"><tr class="empty-row"><td colspan="3">暂无已分享流程</td></tr></tbody></table>
+</div>
+</div>
+
+<div class="section">
+<div class="section-header">📦 备份存储</div>
+<div class="section-body" style="padding:16px">
+<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">
+<span>已用空间</span><span id="backupDetail">—</span>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="backupBar" style="width:0%"></div></div>
+<div style="margin-top:12px;font-size:11px;color:var(--muted)">
+备份目录: <span class="code-font" id="backupDir">—</span>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="footer">yumirror v3 · 服务端面板 · <span id="serverIP">—</span></div>
+
+<script>
+function fmtUptime(s){
+ const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);
+ const parts=[];
+ if(d)parts.push(d+'天');
+ if(h)parts.push(h+'时');
+ parts.push(m+'分');
+ return parts.join(' ');
+}
+
+function refresh(){
+ fetch('/api/status').then(r=>r.json()).then(d=>{
+  document.getElementById('uptime').textContent='运行时间: '+fmtUptime(d.uptime||0);
+  document.getElementById('serverName').textContent='监听: 0.0.0.0 (TCP) | Web: '+location.port;
+
+  document.getElementById('statClients').textContent=d.client_count||0;
+  document.getElementById('statGroups').textContent=Object.keys(d.groups||{}).length;
+  document.getElementById('statFlows').textContent=d.shared_flows||0;
+  document.getElementById('statBackups').textContent=(d.backup_size||0)+' MB';
+
+  // 客户端表
+  const ct=document.getElementById('tblClients');
+  const clients=d.clients||{};
+  const cids=Object.keys(clients);
+  if(cids.length){
+   ct.innerHTML=cids.map(id=>{
+    const cl=clients[id];
+    return `<tr><td><span class="code-font">${esc(id)}</span></td><td><span class="badge blue">${esc(cl.group||'?')}</span></td><td><span class="badge green">● 在线</span></td></tr>`;
+   }).join('');
+  }else{ct.innerHTML='<tr class="empty-row"><td colspan="3">暂无客户端连接</td></tr>';}
+
+  // 分组表
+  const gt=document.getElementById('tblGroups');
+  const groups=d.groups||{};
+  const gids=Object.keys(groups);
+  if(gids.length){
+   gt.innerHTML=gids.map(gid=>{
+    const members=groups[gid];
+    return `<tr><td><span class="badge purple">${esc(gid)}</span></td><td>${members.length}</td><td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${members.map(m=>esc(m)).join(', ')}</td></tr>`;
+   }).join('');
+  }else{gt.innerHTML='<tr class="empty-row"><td colspan="3">暂无活跃分组</td></tr>';}
+
+  // 备份
+  const bkSize=d.backup_size||0;
+  const maxBk=102400; // 100 GB 参考
+  const pct=Math.min(100,Math.round(bkSize/maxBk*100));
+  document.getElementById('backupBar').style.width=pct+'%';
+  document.getElementById('backupDetail').textContent=bkSize+' MB / '+maxBk+' MB ('+pct+'%)';
+  document.getElementById('backupDir').textContent=d.backup_dir||'—';
+
+  document.getElementById('serverIP').textContent='服务端已就绪';
+  document.getElementById('refreshHint').textContent='⏱ 刚刚刷新';
+  setTimeout(()=>document.getElementById('refreshHint').textContent='⏱ 每 3s 刷新',1500);
+ }).catch(e=>{
+  console.error(e);
+  document.getElementById('refreshHint').textContent='⚠ 刷新失败';
+ });
+}
+
+// 单独加载分享流程列表
+function refreshFlows(){
+ fetch('/api/flows/shared').then(r=>r.json()).then(flows=>{
+  const ft=document.getElementById('tblFlows');
+  if(flows.length){
+   ft.innerHTML=flows.map(f=>`<tr><td><span class="badge yellow code-font">${esc(f.share_code)}</span></td><td>${esc(f.name||'未命名')}</td><td>${f.steps||0} 步</td></tr>`).join('');
+  }else{ft.innerHTML='<tr class="empty-row"><td colspan="3">暂无已分享流程</td></tr>';}
+ }).catch(()=>{});
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+refresh();refreshFlows();
+setInterval(refresh,3000);
+setInterval(refreshFlows,10000);
+</script>
+</body>
+</html>

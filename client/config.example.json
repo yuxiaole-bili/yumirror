@@ -1,0 +1,53 @@
+{
+  "client_id": "办公室电脑",
+  "group_id": "test",
+  "group_key": "",
+  "language": "",
+  "server_host": "192.168.1.100",
+  "server_port": 9999,
+  "server_web_port": 8086,
+  "web_host": "127.0.0.1",
+  "web_port": 8087,
+  "heartbeat_interval": 10,
+  "reconnect_base_delay": 2,
+  "reconnect_max_delay": 60,
+  "auto_backup_on_start": true,
+  "max_reconcile_files": 2000,
+  "backup_key_file": "",
+  "backup_passphrase": "",
+  "vault_dir": "",
+  "account": "",
+  "allow_command_block": false,
+  "tls": {
+    "enabled": true,
+    "fingerprint": "",
+    "server_hostname": ""
+  },
+  "sync_folders": [
+    {
+      "name": "工作文档",
+      "path": "./sync_work"
+    },
+    {
+      "name": "共享资源",
+      "path": "./sync_shared"
+    }
+  ],
+  "ignore_patterns": [
+    ".DS_Store", "Thumbs.db", "*.tmp", "*.swp", "*.swo", "~$*",
+    "__pycache__", "*.pyc", ".git", ".git/*", "node_modules", ".venv", "venv"
+  ],
+  "sync_groups": {},
+  "folder_triggers": {},
+  "ssh_tunnel": {
+    "enabled": false,
+    "ssh_host": "192.168.1.100",
+    "ssh_port": 22,
+    "ssh_user": "your_username",
+    "ssh_password": null,
+    "ssh_key_path": "~/.ssh/id_rsa",
+    "ssh_key_passphrase": null,
+    "web_local_port": 8086,
+    "web_remote_port": 8086
+  }
+}

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>方案管理 — yumirror</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--red:#f87171;--green:#34d399;--purple:#a78bfa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);padding:24px;min-height:100vh}
+h1{font-size:22px;margin-bottom:8px}
+a{color:var(--accent);text-decoration:none}
+table{width:100%;border-collapse:collapse;margin-top:16px;border-radius:8px;overflow:hidden}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:13px}
+th{background:#111827;color:var(--muted);font-weight:600}
+tr:hover{background:#1a2a40}
+.btn{padding:5px 12px;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--text);cursor:pointer;font-size:11px;transition:all .1s}
+.btn:hover{background:#2a3a56}
+.btn.primary{color:var(--accent);border-color:var(--accent)}.btn.primary:hover{background:#0a2a40}
+.btn.danger{color:var(--red);border-color:var(--red)}.btn.danger:hover{background:#2a1015}
+.btn.green{color:var(--green);border-color:var(--green)}.btn.green:hover{background:#0a2a1a}
+.actions{display:flex;gap:6px}
+.empty{text-align:center;padding:60px;color:var(--muted)}
+.nav{display:flex;gap:12px;margin-bottom:16px}
+</style>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="alternate icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+</head>
+<body>
+<h1>📦 方案管理</h1>
+<div class="nav">
+ <a href="/">← 主页</a>
+ <a href="/files">🗂 文件</a>
+ <a href="/editor">🧩 编辑器</a>
+ <a href="/workshop">🏭 工坊</a>
+</div>
+<table><thead><tr><th>名称</th><th>步骤</th><th>操作</th></tr></thead><tbody id="tbody"></tbody></table>
+<div class="empty" id="empty" style="display:none">📭 暂无方案，从<a href="/workshop" style="color:var(--accent)">工坊</a>安装或<a href="/editor" style="color:var(--accent)">编辑器</a>新建</div>
+<script>
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function load(){
+ fetch('/api/flow/list').then(r=>r.json()).then(d=>{
+  var flows=d.flows||[],tb=document.getElementById('tbody'),em=document.getElementById('empty');
+  tb.innerHTML='';em.style.display=flows.length?'none':'block';
+  flows.forEach(function(f){
+   var tr=document.createElement('tr');
+   tr.innerHTML='<td><b>'+esc(f.name)+'</b></td><td>'+f.steps+' 步</td><td class="actions"><button class="btn primary" onclick="openFlow(\''+esc(f.name)+'\')">✏ 编辑</button><button class="btn green" onclick="testFlow(\''+esc(f.name)+'\')">🧪 测试</button><button class="btn" onclick="shareFlow(\''+esc(f.name)+'\')">📤 分享</button><button class="btn danger" onclick="delFlow(\''+esc(f.name)+'\')">🗑</button></td>';
+   tb.appendChild(tr);
+  });
+ });
+}
+function openFlow(n){window.location.href='/editor?load='+encodeURIComponent(n);}
+function testFlow(n){fetch('/api/flow/load/'+encodeURIComponent(n)).then(r=>r.json()).then(d=>{if(d.flow){fetch('/api/flow/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d.flow)}).then(r=>r.json()).then(r2=>{if(r2.status==='ok'){alert('✅ 测试完成\n步骤: '+r2.steps);}else{alert('❌ '+r2.error);}});}});}
+function shareFlow(n){fetch('/api/flow/load/'+encodeURIComponent(n)).then(r=>r.json()).then(d=>{if(d.flow){fetch('/api/flow/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d.flow)}).then(r=>r.json()).then(r2=>{if(r2.status==='ok'){navigator.clipboard.writeText(r2.share_code||'');alert('✅ 方案码已复制: '+r2.share_code);}else{alert('❌ '+r2.msg);}});}});}
+function delFlow(n){if(!confirm('删除 '+n+' ?'))return;fetch('/api/flow/delete/'+encodeURIComponent(n),{method:'POST'}).then(r=>r.json()).then(d=>{if(d.status==='ok')load();else alert('删除失败');});}
+load();
+</script>
+{{ i18n_js() }}
+</body>
+</html>

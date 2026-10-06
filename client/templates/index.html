@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>yumirror - 客户端</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--green:#34d399;--red:#f87171;--yellow:#fbbf24;--purple:#a78bfa;--r:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;scroll-behavior:smooth}
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.header h1{font-size:18px;font-weight:700}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot.online{background:var(--green);animation:pulse 2s infinite}
+.dot.offline{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:6px;padding:8px 20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;text-align:center}
+.stat-card .stat-num{font-size:20px;font-weight:700;line-height:1.1}
+.stat-card .stat-label{font-size:9px;color:var(--muted);margin-top:1px;text-transform:uppercase}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;padding:6px 20px}
+.btn{padding:7px 14px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);cursor:pointer;font-size:11px;transition:.12s;white-space:nowrap;text-decoration:none}
+.btn:hover{background:#2a3a56}
+.btn.primary{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:600}
+.split-row{display:flex;gap:10px;padding:0 20px 6px}
+.split-row>div{flex:1;min-width:0}
+@media(max-width:900px){.split-row{flex-direction:column}}
+.section{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin:0}
+.section-header{padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;font-size:12px;display:flex;align-items:center;justify-content:space-between;background:#111827}
+.section-body{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th,td{padding:5px 8px;text-align:left;border-bottom:1px solid #ffffff06}
+th{color:var(--muted);font-weight:500;font-size:9px;text-transform:uppercase;letter-spacing:.5px;background:#0a0f1a;position:sticky;top:0;z-index:1}
+td{color:var(--text)}
+.file-row{cursor:pointer;transition:background .1s}
+.file-row:hover{background:#1a2a40}
+.file-row.selected{background:#0a2a3a;border-left:3px solid var(--accent)}
+.badge{padding:2px 5px;border-radius:6px;font-size:8px;font-weight:600;white-space:nowrap}
+.badge.green{background:#065f46;color:var(--green)}
+.badge.red{background:#7f1d1d;color:var(--red)}
+.badge.yellow{background:#4a3a00;color:var(--yellow)}
+.badge.blue{background:#0a2a4a;color:var(--accent)}
+.badge.purple{background:#2a1040;color:var(--purple)}
+.badge.orange{background:#4a2a00;color:#fb923c}
+.empty-state{padding:14px;text-align:center;color:var(--muted);font-size:11px}
+.preview-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
+.preview-card .pc-header{padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;font-size:12px;display:flex;align-items:center;justify-content:space-between;background:#111827;gap:8px}
+.preview-card .pc-body{overflow:auto;min-height:200px}
+.preview-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--muted);gap:8px}
+.preview-empty .pe-icon{font-size:36px;opacity:.5}
+.preview-content{padding:10px 14px;font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-all;background:#060a12}
+.preview-image-wrap{padding:10px;text-align:center}
+.preview-image-wrap img{max-width:100%;max-height:350px;border-radius:4px}
+.preview-binary{padding:24px;text-align:center}
+.preview-binary .pb-icon{font-size:40px;margin-bottom:10px;opacity:.7}
+.preview-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;justify-content:center}
+.preview-meta-item{font-size:10px;color:var(--muted)}
+.preview-meta-item span{color:var(--text)}
+
+/* ── 流程日志 ── */
+.flow-folder-group{margin:0 20px 6px}
+.flow-folder-header{padding:6px 14px;font-weight:600;font-size:12px;background:#1a2a40;border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;display:flex;align-items:center;gap:8px}
+.flow-folder-header .ff-count{font-size:9px;color:var(--muted)}
+.flow-folder-body{border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);overflow:hidden}
+.detail-log{font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:9px;line-height:1.6;padding:3px 10px;white-space:pre-wrap;word-break:break-all;border-bottom:1px solid #ffffff04}
+.detail-log.INFO{color:var(--muted)}
+.detail-log.WARNING{color:var(--yellow)}
+.detail-log.ERROR{color:var(--red)}
+.detail-log-block{border-bottom:2px solid var(--border);background:#0a0a16}
+.detail-log-block:last-child{border-bottom:none}
+.detail-log-header{padding:5px 10px;font-size:10px;border-bottom:1px solid var(--border);background:#0e1625;display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer}
+.detail-log-header:hover{background:#111d33}
+.detail-log-content{overflow:auto;display:block}
+
+/* ── 事件日志 ── */
+.event-entry{padding:4px 10px;border-bottom:1px solid #ffffff06;font-size:10px;display:flex;align-items:flex-start;gap:8px}
+.event-entry:hover{background:#ffffff04}
+.event-entry .ev-icon{flex-shrink:0;font-size:12px;margin-top:1px}
+.event-entry .ev-body{flex:1;min-width:0}
+.event-entry .ev-msg{line-height:1.3;word-break:break-all}
+.event-entry .ev-time{font-size:9px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+
+.config-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:11px}
+.config-row label{color:var(--muted);min-width:60px;font-size:10px}
+.config-row select{background:#0f1823;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:11px;flex:1;min-width:0}
+.config-row select:focus{border-color:var(--accent);outline:none}
+.clickable{cursor:pointer}
+.clickable:hover{opacity:.8}
+.footer{padding:8px 20px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);text-align:center;margin-top:6px}
+.truncate{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.mono{font-family:monospace;font-size:10px}
+.trg-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#0f1823;border:1px solid var(--border);border-radius:7px;padding:5px 8px;margin:4px 0}
+.trg-in{background:#0f1823;border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-size:11px;flex:1;min-width:60px}
+.trg-in:focus{border-color:var(--yellow);outline:none}
+.trg-x{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 4px}
+.trg-x:hover{background:#2a1015;border-radius:4px}
+</style>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="alternate icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+</head>
+<body>
+
+<div class="header">
+<div>
+<h1><svg width="22" height="22" viewBox="0 0 256 256" aria-hidden="true" style="vertical-align:-5px;margin-right:7px"><rect x="8" y="8" width="240" height="240" rx="56" fill="#0f172a" stroke="#38bdf8" stroke-width="10"/><line x1="128" y1="52" x2="128" y2="204" stroke="#22d3ee" stroke-width="12" stroke-linecap="round" stroke-dasharray="26 22"/><rect x="40" y="82" width="70" height="100" rx="14" fill="#162e30" stroke="#34d399" stroke-width="10"/><rect x="146" y="72" width="72" height="110" rx="15" fill="#1e293b" stroke="#38bdf8" stroke-width="10"/></svg><span class="dot" id="statusDot"></span>yumirror</h1>
+<span style="font-size:11px;color:var(--muted)">客户端 · <span id="clientId">—</span></span>
+</div>
+<div style="display:flex;align-items:center;gap:12px;font-size:11px">
+<span id="serverInfo">未连接</span>
+<span id="peerCount" style="color:var(--accent)"></span>
+<button class="btn" style="padding:4px 10px" onclick="logout()" title="退出登录">👤 登出</button>
+</div>
+</div>
+
+<div class="stats-row">
+<div class="stat-card"><div class="stat-num" style="color:var(--green)" id="statIn">0</div><div class="stat-label">接收</div></div>
+<div class="stat-card"><div class="stat-num" style="color:var(--accent)" id="statOut">0</div><div class="stat-label">发送</div></div>
+<div class="stat-card"><div class="stat-num" style="color:var(--red)" id="statDelIn">0</div><div class="stat-label">删(收)</div></div>
+<div class="stat-card"><div class="stat-num" style="color:var(--yellow)" id="statDelOut">0</div><div class="stat-label">删(发)</div></div>
+<div class="stat-card"><div class="stat-num" style="color:var(--red)" id="statConflict">0</div><div class="stat-label">冲突</div></div>
+<div class="stat-card"><div class="stat-num" style="color:var(--purple)" id="statFlow">0</div><div class="stat-label">流程</div></div>
+</div>
+
+<div class="btn-row">
+<a href="/editor" class="btn primary">🧩 流程编辑器</a>
+<a href="/files" class="btn">🗂 文件管理</a>
+<a href="/flows" class="btn">📦 方案管理</a>
+<a href="/workshop" class="btn">🏭 流程工坊</a>
+<button class="btn" onclick="refreshAll()">🔄 全部刷新</button>
+<button class="btn" onclick="reconnect()">🔗 重连</button>
+</div>
+
+<!-- 📱 设备管理 -->
+<div class="section" style="margin:0 20px 6px">
+<div class="section-header">📱 设备管理 <span style="font-size:9px;color:var(--muted)">当前账户名下的设备</span></div>
+<div class="section-body" style="padding:8px 12px">
+<div style="font-size:11px;color:var(--muted)">账户: <b style="color:var(--text)" id="devName">—</b> <button class="btn" style="padding:2px 8px;font-size:10px;margin-left:6px" onclick="loadDevices()">🔄 刷新设备</button></div>
+<div id="devFolders" style="margin-top:6px"></div>
+<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+<button class="btn" onclick="fullSync()">🧹 全量同步</button>
+<button class="btn" onclick="reconnect()">🔗 重连</button>
+</div>
+</div>
+</div>
+
+<div class="split-row" style="height:340px">
+<div style="overflow:auto">
+<div class="section" style="height:100%">
+<div class="section-header">📂 同步文件夹</div>
+<div class="section-body" id="folderList" style="height:calc(100% - 33px)"><div class="empty-state">加载中...</div></div>
+</div>
+</div>
+<div>
+<div class="preview-card" style="height:100%">
+<div class="pc-header">🔍 文件预览</div>
+<div class="pc-body" id="previewBody"><div class="preview-empty"><div class="pe-icon">👆</div><div>点击左侧文件查看预览</div></div></div>
+</div>
+</div>
+</div>
+
+<div class="split-row">
+<div>
+<div class="section">
+<div class="section-header">👥 在线同伴</div>
+<div class="section-body" style="max-height:160px;overflow:auto">
+<table><thead><tr><th>设备ID</th><th>状态</th></tr></thead>
+<tbody id="tblPeers"><tr><td colspan="2" class="empty-state">暂无同伴在线</td></tr></tbody></table>
+</div>
+</div>
+</div>
+<div>
+<div class="section">
+<div class="section-header">⚙ 同步组配置</div>
+<div class="section-body" style="max-height:160px;overflow:auto;padding:8px 12px" id="syncGroupConfig"><div class="empty-state">加载中...</div></div>
+</div>
+</div>
+</div>
+
+<!-- ⚡ 流程执行日志 — 按文件夹分组 -->
+<div id="flowLogsArea"><div class="empty-state" style="margin:0 20px 6px">暂无流程执行记录</div></div>
+
+<!-- ⚡ 触发器配置（按备份目录） -->
+<div class="section" style="margin:0 20px 6px">
+<div class="section-header">⚡ 触发器配置 <span style="font-size:9px;color:var(--muted)">按备份目录配置 · 每个目录可多条件并存</span></div>
+<div class="section-body" id="trigCfg" style="padding:8px 12px"><div class="empty-state">加载中...</div></div>
+<div class="section-header" style="border-top:1px solid var(--border)">⚡ 手动执行</div>
+<div class="section-body" id="manualTriggers" style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px"><div class="empty-state">—</div></div>
+</div>
+
+<!-- 📡 实时事件 -->
+<div class="section" style="margin:0 20px 6px">
+<div class="section-header">📡 实时事件 <span style="font-size:9px;color:var(--muted)">含同步组操作</span></div>
+<div class="section-body" style="max-height:200px;overflow:auto" id="eventLogs"><div class="empty-state">暂无事件</div></div>
+</div>
+
+<div class="footer">yumirror v3 · 客户端面板</div>
+
+<script>
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escJs(s){return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');}
+function timeAgo(ts){const diff=Date.now()/1000-ts;if(diff<60)return Math.floor(diff)+'秒前';if(diff<3600)return Math.floor(diff/60)+'分钟前';if(diff<86400)return Math.floor(diff/3600)+'小时前';return new Date(ts*1000).toLocaleString('zh-CN');}
+function fmtSize(b){if(!b)return'0 B';if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';if(b<1073741824)return(b/1048576).toFixed(1)+' MB';return(b/1073741824).toFixed(2)+' GB';}
+function getFileType(fn){const e=(fn||'').toLowerCase().split('.').pop();const t='txt md json py html css js log cfg ini yaml yml xml csv sh bat ps1 toml env tex c cpp h rs go java kt swift'.split(' ');if(t.includes(e))return'text';if('png jpg jpeg gif webp svg bmp ico'.split(' ').includes(e))return'image';return'binary';}
+
+let currentPreview=null, loadedLogFiles={};
+
+function refreshAll(){refreshFolders();refreshSyncGroups();}
+
+function showPreview(folder,relpath){
+ currentPreview={folder,relpath};
+ const body=document.getElementById('previewBody');
+ body.innerHTML='<div class="preview-empty"><div class="pe-icon">⏳</div><div>加载中...</div></div>';
+ fetch('/api/file/read',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder,relpath})}).then(r=>r.json()).then(d=>{
+  if(!currentPreview||currentPreview.folder!==folder||currentPreview.relpath!==relpath)return;
+  if(d.status!=='ok'){body.innerHTML=`<div class="preview-empty"><div class="pe-icon">❌</div><div>${esc(d.msg||'失败')}</div></div>`;return;}
+  const hdr=document.querySelector('.preview-card .pc-header');
+  const ti=d.type==='text'?'📄':d.type==='image'?'🖼':'📦';
+  hdr.innerHTML=`🔍 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ti} ${esc(relpath)}</span> ${d.type==='text'?'<button class="btn" style="font-size:9px;padding:2px 6px" onclick="copyPreview()">📋</button>':''}`;
+  if(d.type==='text')body.innerHTML=`<pre class="preview-content" id="previewText">${esc(d.content||'')}</pre>`;
+  else if(d.type==='image')body.innerHTML=`<div class="preview-image-wrap"><img src="data:${d.mime};base64,${d.content}" alt="${esc(relpath)}"></div>`;
+  else body.innerHTML=`<div class="preview-binary"><div class="pb-icon">📦</div><div style="font-weight:600;margin-bottom:6px;font-size:13px">${esc(relpath)}</div><div class="preview-meta"><div class="preview-meta-item">类型: <span>${esc(d.ext||'?')}</span></div><div class="preview-meta-item">大小: <span>${fmtSize(d.size)}</span></div>${d.sha256?`<div class="preview-meta-item">SHA256: <span class="mono">${esc(d.sha256.slice(0,16))}...</span></div>`:''}</div></div>`;
+ }).catch(e=>{body.innerHTML=`<div class="preview-empty"><div class="pe-icon">❌</div><div>${esc(e.message)}</div></div>`;});
+}
+function copyPreview(){const el=document.getElementById('previewText');if(el){navigator.clipboard.writeText(el.textContent);const b=document.querySelector('.preview-card .pc-header .btn');if(b){b.textContent='✅';setTimeout(()=>{b.textContent='📋';},1500);}}}
+
+function refreshFolders(){
+ const el=document.getElementById('folderList');
+ fetch('/api/folders').then(r=>r.json()).then(fs=>{
+  if(!(fs||[]).length){el.innerHTML='<div class="empty-state">暂无同步文件夹</div>';return;}
+  el.innerHTML=fs.map(f=>`<div class="section" style="border-radius:0;border-left:none;border-right:none">
+   <div class="section-header" style="font-size:11px">📁 ${esc(f.name)} <span style="font-size:9px;color:var(--muted)">${(f.files||[]).length} 文件</span></div>
+   <div style="max-height:180px;overflow:auto"><table><thead><tr><th>文件</th><th style="width:65px">大小</th><th style="width:80px">哈希</th></tr></thead>
+   <tbody>${(f.files||[]).length?(f.files||[]).map(ff=>{const ft=getFileType(ff.relpath);const icon=ft==='image'?'🖼':ft==='text'?'📄':'📦';return`<tr class="file-row" onclick="selectFile(this,'${escJs(f.name)}','${escJs(ff.relpath)}')"><td><span class="truncate" title="${esc(ff.relpath)}">${icon} ${esc(ff.relpath)}</span></td><td>${fmtSize(ff.size)}</td><td class="mono">${(ff.sha256||'').slice(0,12)}</td></tr>`;}).join(''):'<tr><td colspan="3" class="empty-state">空目录</td></tr>'}</tbody></table></div></div>`).join('');
+ }).catch(()=>{el.innerHTML='<div class="empty-state">加载失败</div>';});
+}
+function selectFile(row,folder,relpath){document.querySelectorAll('.file-row.selected').forEach(r=>r.classList.remove('selected'));row.classList.add('selected');showPreview(folder,relpath);}
+
+function refreshSyncGroups(){
+ const el=document.getElementById('syncGroupConfig');
+ Promise.all([
+  fetch('/api/sync-groups').then(r=>r.json()),
+  fetch('/api/flow/list').then(r=>r.json()),
+  fetch('/api/folders').then(r=>r.json())
+ ]).then(([gs,fd,folders])=>{
+  const flows=fd.flows||[];
+  if(!folders.length){el.innerHTML='<div class="empty-state">暂无同步文件夹</div>';return;}
+  el.innerHTML=folders.map(f=>{
+   const fn=f.name; const g=gs[fn]||{active_flow:'',enabled:true};
+   const af=g.active_flow||''; const en=g.enabled!==false;
+   const fo=flows.map(ff=>`<option value="${esc(ff.name)}" ${ff.name===af?'selected':''}>${esc(ff.name)}</option>`).join('');
+   return`<div style="background:#0a0f1a;border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <span style="font-weight:600;font-size:11px">📁 ${esc(fn)}</span>
+    <span class="badge ${en?'green':'red'} clickable" onclick="tg('${esc(fn)}',${!en})">${en?'✅启用':'⏸暂停'}</span>
+    <select onchange="saf('${esc(fn)}',this.value)" style="background:#0f1823;border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:4px;font-size:10px;max-width:140px"><option value="">-- 无 --</option>${fo}</select>
+   </div>`;
+  }).join('');
+ }).catch(()=>{el.innerHTML='<div class="empty-state">加载失败</div>';});
+}
+function saf(gid,fn){fetch('/api/flow/active',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({group_id:gid,name:fn})}).then(r=>r.json()).then(d=>{if(d.status==='ok')refreshSyncGroups();});}
+function tg(gid,en){fetch('/api/sync-groups').then(r=>r.json()).then(gs=>{gs[gid]=gs[gid]||{};gs[gid].enabled=en;fetch('/api/sync-groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(gs)});}).then(()=>refreshSyncGroups());}
+function reconnect(){fetch('/api/reconnect',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),1500));}
+
+// ── 加载日志文件内容 ──
+let flowLogCounter=0;
+function fetchLogContent(logFile,cb){
+ if(loadedLogFiles[logFile]){cb(loadedLogFiles[logFile]);return;}
+ fetch('/api/flow/log/'+encodeURIComponent(logFile)).then(r=>r.json()).then(d=>{
+  if(d.status==='ok'){loadedLogFiles[logFile]=d.content;cb(d.content);}
+  else cb(null);
+ }).catch(()=>cb(null));
+}
+
+// ====== 状态更新 ======
+function update(){
+ fetch('/api/status').then(r=>r.json()).then(d=>{
+  document.getElementById('statusDot').className='dot '+(d.connected?'online':'offline');
+  document.getElementById('serverInfo').textContent=d.connected?('已连接: '+esc(d.server)):'未连接';
+  document.getElementById('clientId').textContent=d.client_id||'—';
+  document.getElementById('peerCount').textContent=d.connected?('同伴: '+(d.peers||[]).length+' 在线'):'';
+
+  const st=d.stats||{};
+  document.getElementById('statIn').textContent=st.in||0;
+  document.getElementById('statOut').textContent=st.out||0;
+  document.getElementById('statDelIn').textContent=st.del_in||0;
+  document.getElementById('statDelOut').textContent=st.del_out||0;
+  document.getElementById('statConflict').textContent=st.conflict||0;
+
+  const events=d.events||[];
+  document.getElementById('statFlow').textContent=events.filter(e=>e.type==='flow_executed').length;
+
+  // 👥 同伴
+  const peers=d.peers||[];
+  document.getElementById('tblPeers').innerHTML=peers.length?peers.map(p=>`<tr><td><span class="mono">${esc(p)}</span></td><td><span class="badge green">● 在线</span></td></tr>`).join(''):'<tr><td colspan="2" class="empty-state">暂无同伴在线</td></tr>';
+
+  // ⚡ 流程执行日志 — 按文件夹分组
+  const fe=events.filter(e=>e.type==='flow_executed');
+  const flArea=document.getElementById('flowLogsArea');
+  if(!fe.length){flArea.innerHTML='<div class="empty-state" style="margin:0 20px 6px">暂无流程执行记录</div>';}else{
+   // 按文件夹分组
+   const groups={};
+   fe.slice().reverse().forEach(e=>{
+    const folder=(e.data||{}).folder||'(全局)';
+    if(!groups[folder])groups[folder]=[];
+    groups[folder].push(e);
+   });
+
+   let html='';
+   flowLogCounter=0;
+   Object.keys(groups).forEach(folder=>{
+    const items=groups[folder];
+    html+=`<div class="flow-folder-group">
+     <div class="flow-folder-header">📂 ${esc(folder)} <span class="ff-count">${items.length} 条执行记录</span></div>
+     <div class="flow-folder-body">`;
+    items.forEach((e,i)=>{
+     const dd=e.data||{};
+     const tl={'on_file_change':'📁 文件变更','on_conflict':'⚠️ 哈希冲突','on_poll':'⏰ 定时轮询','on_startup':'🚀 启动触发','on_manual':'👆 手动触发','manual_test':'🧪 手动测试'};
+     const logFile=dd.log_file||'';
+     const cid=flowLogCounter++;
+     html+=`<div class="detail-log-block">
+      <div class="detail-log-header" onclick="toggleFlowBlock('flc_${cid}')">
+       <span class="badge purple">${esc(dd.flow||'?')}</span>
+       <span>${tl[dd.trigger]||dd.trigger||'—'}</span>
+       <b>${dd.steps||0} 步</b>
+       <span class="badge ${dd.steps>0?'green':'red'}">${dd.steps>0?'✅':'❌'}</span>
+       ${dd.relpath?`<span style="font-size:9px;color:var(--muted)">📄 ${esc(dd.relpath)}</span>`:''}
+       ${logFile?`<span class="badge blue">📝 ${esc(logFile)}</span>`:''}
+       <span style="margin-left:auto;font-size:9px;color:var(--muted)">${timeAgo(e.time)}</span>
+      </div>
+      <div class="detail-log-content" id="flc_${cid}" style="max-height:220px;overflow:auto"></div>
+     </div>`;
+    });
+    html+=`</div></div>`;
+   });
+   flArea.innerHTML=html;
+
+   // 自动加载日志内容
+   flowLogCounter=0;
+   Object.keys(groups).forEach(folder=>{
+    groups[folder].forEach(e=>{
+     const logFile=(e.data||{}).log_file||'';
+     const cid=flowLogCounter++;
+     if(logFile){
+      const contentEl=document.getElementById('flc_'+cid);
+      if(contentEl){
+       contentEl.innerHTML='<div style="padding:6px;color:var(--muted);font-size:9px">⏳ 加载中...</div>';
+       fetchLogContent(logFile,function(content){
+        const el2=document.getElementById('flc_'+cid);
+        if(!el2||!content)return;
+        el2.innerHTML=content.split('\n').map(line=>{
+         let cls='INFO';
+         if(line.includes('ERROR'))cls='ERROR';
+         else if(line.includes('WARNING'))cls='WARNING';
+         return`<div class="detail-log ${cls}">${esc(line)}</div>`;
+        }).join('');
+       });
+      }
+     }
+    });
+   });
+  }
+
+  // 📡 实时事件
+  const el2=document.getElementById('eventLogs');
+  if(!events.length){el2.innerHTML='<div class="empty-state">暂无事件</div>';}else{
+   el2.innerHTML=events.slice().reverse().map(e=>{
+    const ic={connected:'🔗',peer_online:'🟢',peer_offline:'🔴',flow_executed:'⚡',flow_saved:'💾',
+              config_updated:'⚙',snapshot_sent:'📸',sync_groups_updated:'👥',
+              sync_group_toggle:'🔘',sync_group_flow:'🔄'};
+    const lb={connected:'连接',peer_online:'同伴上线',peer_offline:'同伴离线',flow_executed:'流程执行',
+              flow_saved:'流程保存',config_updated:'配置更新',snapshot_sent:'快照',
+              sync_groups_updated:'分组更新',sync_group_toggle:'同步开关',sync_group_flow:'流程切换'};
+    const dd=e.data||{};
+    let dt='';
+    if(e.type==='connected')dt='服务端: '+esc(dd.server||'')+' · 同伴: '+(dd.peers||[]).length+' 在线';
+    else if(e.type==='peer_online')dt='同伴上线: '+esc(dd.peer||'');
+    else if(e.type==='peer_offline')dt='同伴离线: '+esc(dd.peer||'');
+    else if(e.type==='flow_executed')dt='流程: '+esc(dd.flow||'')+' · '+esc(dd.trigger||'')+' · '+(dd.steps||0)+'步';
+    else if(e.type==='flow_saved')dt='保存流程: '+esc(dd.name||'');
+    else if(e.type==='config_updated')dt='更新配置: '+esc((dd.fields||[]).join(', '));
+    else if(e.type==='sync_group_toggle')dt='📁 '+esc(dd.group||'')+' → '+(dd.enabled?'✅ 启用':'⏸ 暂停');
+    else if(e.type==='sync_group_flow')dt='📁 '+esc(dd.group||'')+' · 流程切换: '+esc(dd.detail||'');
+    else if(e.type==='sync_groups_updated')dt='分组更新: '+esc((dd.groups||[]).join(', '));
+    else dt=JSON.stringify(dd).slice(0,80);
+    return`<div class="event-entry"><div class="ev-icon">${ic[e.type]||'📌'}</div><div class="ev-body"><div class="ev-msg"><b>${lb[e.type]||e.type}</b> · ${dt}</div></div><div class="ev-time">${timeAgo(e.time)}</div></div>`;
+   }).join('');
+  }
+ }).catch(e=>{console.error(e);});
+}
+
+function toggleFlowBlock(id){
+ const el=document.getElementById(id);
+ if(!el)return;
+ if(el.style.display==='none'){el.style.display='block';el.style.maxHeight='220px';}
+ else{el.style.display='none';}
+}
+
+var trigCfg={},trigFlows=[],trigFolders=[],trigTypes=[['poll','轮询'],['schedule','定时(cron)'],['file_change','文件变更'],['manual','手动']];
+function loadTrigCfg(){
+ fetch('/api/triggers').then(r=>r.json()).then(d=>{trigCfg=d.config||{};trigFlows=d.flows||[];trigFolders=d.folders||[];renderTrigCfg();renderManual();}).catch(()=>{});
+}
+function trigParams(tr){
+ const h={poll:'<input class="trg-in" placeholder="间隔(秒)" value="'+(tr.interval_sec||60)+'" onchange="trgP(\''+tr._f+'\','+tr._i+',\'interval_sec\',this.value)">',
+  schedule:'<input class="trg-in" style="min-width:130px" placeholder="cron: */5 * * * *" value="'+esc(tr.cron||'')+'" onchange="trgP(\''+tr._f+'\','+tr._i+',\'cron\',this.value)">',
+  file_change:'<input class="trg-in" placeholder="匹配" value="'+esc(tr.pattern||'*')+'" onchange="trgP(\''+tr._f+'\','+tr._i+',\'pattern\',this.value)">',
+  manual:'<input class="trg-in" placeholder="按钮名" value="'+esc(tr.label||'')+'" onchange="trgP(\''+tr._f+'\','+tr._i+',\'label\',this.value)">'};
+ return h[tr.type]||'';
+}
+function renderTrigCfg(){
+ const box=document.getElementById('trigCfg');
+ if(!trigFolders.length){box.innerHTML='<div class="empty-state">请先在配置里添加同步文件夹</div>';return;}
+ let h='';
+ trigFolders.forEach(fd=>{
+  const list=trigCfg[fd]||[];
+  h+='<div style="font-size:12px;font-weight:700;color:var(--accent);margin:6px 0 2px">📁 '+esc(fd)+'</div>';
+  if(!list.length)h+='<div style="font-size:10px;color:var(--muted);margin-bottom:4px">（无触发条件）</div>';
+  list.forEach((tr,i)=>{tr._f=fd;tr._i=i;
+   h+='<div class="trg-row"><select class="trg-in" style="width:90px" onchange="trgT(\''+esc(fd)+'\','+i+',this.value)">'+trigTypes.map(tp=>'<option value="'+tp[0]+'"'+(tr.type===tp[0]?' selected':'')+'>'+tp[1]+'</option>').join('')+'</select>'+trigParams(tr)+'<select class="trg-in" style="flex:1;min-width:100px" onchange="trgP(\''+esc(fd)+'\','+i+',\'flow\',this.value)"><option value="">-- 该目录 active_flow --</option>'+trigFlows.map(f=>'<option value="'+esc(f)+'"'+(tr.flow===f?' selected':'')+'>'+esc(f)+'</option>').join('')+'</select><button class="trg-x" onclick="trgDel(\''+esc(fd)+'\','+i+')">✕</button></div>';
+  });
+  h+='<button class="btn sm" onclick="trgAdd(\''+esc(fd)+'\')">＋ 为 '+esc(fd)+' 添加触发</button>';
+ });
+ h+='<div style="margin-top:8px;display:flex;gap:8px"><button class="btn primary" onclick="trgSave()">💾 保存触发器</button><span id="trgSaved" style="font-size:10px;color:var(--green)"></span></div>';
+ box.innerHTML=h;
+}
+function trgAdd(fd){trigCfg[fd]=trigCfg[fd]||[];trigCfg[fd].push({type:'poll',interval_sec:60,flow:''});renderTrigCfg();}
+function trgDel(fd,i){trigCfg[fd].splice(i,1);renderTrigCfg();}
+function trgT(fd,i,v){trigCfg[fd][i].type=v;renderTrigCfg();}
+function trgP(fd,i,k,v){trigCfg[fd][i][k]=v;}
+function trgSave(){
+ fetch('/api/triggers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(trigCfg)}).then(r=>r.json()).then(d=>{
+  const el=document.getElementById('trgSaved');
+  if(d.status==='ok'){el.textContent='✅ 已保存，调度已生效';loadTrigCfg();setTimeout(()=>{el.textContent='';},2500);}
+  else el.textContent='❌ '+d.msg;
+ }).catch(()=>{});
+}
+function renderManual(){
+ fetch('/api/flow/triggers').then(r=>r.json()).then(d=>{
+  const box=document.getElementById('manualTriggers');
+  const list=(d.manual||[]);
+  if(!list.length){box.innerHTML='<div class="empty-state">无手动触发（在上方配置"手动"类型）</div>';return;}
+  box.innerHTML=list.map(t=>`<button class="btn" style="border-color:var(--yellow);color:var(--yellow)" onclick="runManual('${escJs(t.flow)}','${escJs(t.folder)}')">⚡ ${esc(t.label||t.flow)}</button>`).join('');
+ }).catch(()=>{});
+}
+function runManual(name,folder){
+ fetch('/api/flow/run/'+encodeURIComponent(name),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder:folder||''})}).then(r=>r.json()).then(d=>{
+  if(d.status==='ok'){setTimeout(update,600);}
+ }).catch(()=>{});
+}
+
+function logout(){fetch('/api/logout',{method:'POST'}).then(()=>{location.href='/login';});}
+function fullSync(){fetch('/api/sync/full',{method:'POST'}).then(r=>r.json()).then(d=>{toastMsg(d.status==='ok'?'🧹 已触发全量同步':'❌ 同步失败');});}
+function toastMsg(m){var t=document.createElement('div');t.style.cssText='position:fixed;top:60px;right:20px;background:#1e293b;border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;font-size:12px;z-index:99';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2000);}
+function loadDevices(){
+ fetch('/api/devices').then(r=>r.json()).then(d=>{
+  document.getElementById('devName').textContent=d.username||'—';
+  const box=document.getElementById('devFolders');
+  const devs=d.devices||[];
+  if(!devs.length){box.innerHTML='<div class="empty-state">该账户暂无绑定设备（服务端 用户管理 中绑定）</div>';return;}
+  box.innerHTML=devs.map(x=>{
+   const ip=(x.addr||'').split(':')[0];
+   const st=x.online?'<span style="color:var(--green)">● 在线</span>':'<span style="color:var(--muted)">○ 离线</span>';
+   return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;border-bottom:1px solid #ffffff08">
+    <span style="color:var(--accent)">🖥</span><b style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.id)}</b>
+    <span style="color:var(--muted);font-size:10px">${esc(x.group||'')}</span>${st}
+    ${ip?'<a class="btn" style="padding:2px 8px;font-size:10px" href="http://'+ip+':8087/" target="_blank" title="打开该设备面板">打开</a>':''}</div>`;
+  }).join('');
+ }).catch(()=>{});
+}
+loadDevices();
+update();refreshFolders();refreshSyncGroups();loadTrigCfg();
+setInterval(update,3000);
+setInterval(refreshFolders,15000);
+setInterval(refreshSyncGroups,30000);
+</script>
+{{ i18n_js() }}
+</body>
+</html>

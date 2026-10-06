@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yumirror"
+version = "3.3.0a1"
+description = "yumirror —— 局域网文件镜像与备份：服务端集中备份 + 客户端自动同步"
+readme = "README.md"
+authors = [{name = "yuxiaole_awa"}]
+license = {text = "MIT"}
+requires-python = ">=3.10"
+keywords = ["lan", "sync", "backup", "mirror", "file-sync"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: File Sharing",
+    "Topic :: System :: Archiving :: Backup",
+]
+
+dependencies = [
+    "Flask>=3.0",
+    "flask-socketio>=5.3",
+    "python-engineio>=4.8",
+    "python-socketio>=5.11",
+    "simple-websocket>=1.0",
+    "watchdog>=3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.3",
+]
+
+[project.scripts]
+yumirror-server = "server.server:main"
+
+[project.urls]
+Homepage = "https://github.com/yuxiaole-bili/yumirror"
+Source = "https://github.com/yuxiaole-bili/yumirror"
+Issues = "https://github.com/yuxiaole-bili/yumirror/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["server", "shared"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
