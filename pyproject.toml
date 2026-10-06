@@ -37,6 +37,10 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.3",
 ]
+# 打免安装包用：pip install .[build] 然后 python scripts/build_release.py
+build = [
+    "pyinstaller>=6.0",
+]
 
 [project.scripts]
 yumirror-server = "server.server:main"

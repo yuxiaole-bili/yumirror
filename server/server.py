@@ -12,8 +12,18 @@ try:
 except Exception:
     pass
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(BASE_DIR))
+# 打包成 exe 后 __file__ 指向临时解包目录：
+#   数据（config/backups/certs/logs/users.json）必须放在 exe 旁边，才不会被清掉
+#   资源（static 等）从 PyInstaller 的解包目录读
+FROZEN = getattr(sys, 'frozen', False)
+if FROZEN:
+    APP_DIR = os.path.dirname(os.path.abspath(sys.executable))
+    RES_DIR = getattr(sys, '_MEIPASS', APP_DIR)
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
+    RES_DIR = APP_DIR
+    sys.path.insert(0, os.path.dirname(APP_DIR))
+BASE_DIR = APP_DIR
 
 from shared.protocol import Connection, MsgType
 from shared.backup_framework import PipelineLogger
@@ -1073,7 +1083,8 @@ document.getElementById('un').focus();
 
 try:
     from flask import Flask, jsonify, render_template_string, request, session, redirect, url_for
-    web_app = Flask(__name__)
+    web_app = Flask(__name__, static_folder=os.path.join(RES_DIR, 'static'),
+                    template_folder=os.path.join(RES_DIR, 'templates'))
     web_app.config['SECRET_KEY'] = os.urandom(16).hex()
     import logging as _log
     _log.getLogger('werkzeug').setLevel(_log.ERROR)
